@@ -17,8 +17,12 @@ val ktorVersion = "1.2.1"
 
 dependencies {
     implementation(kotlin("stdlib-jdk8"))
-    implementation("io.ktor", "ktor-server-core", ktorVersion)
     implementation("io.ktor", "ktor-server-cio", ktorVersion)
+    implementation("io.ktor", "ktor-server-sessions", ktorVersion)
+    implementation("io.ktor", "ktor-client-cio", ktorVersion)
+    implementation("io.ktor", "ktor-client-gson", ktorVersion)
+    implementation("io.ktor", "ktor-auth", ktorVersion)
+    implementation("io.ktor", "ktor-freemarker", ktorVersion)
     implementation("ch.qos.logback", "logback-classic", "1.2.3")
     testCompile("junit", "junit", "4.12")
 }
