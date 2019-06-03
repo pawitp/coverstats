@@ -3,6 +3,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 plugins {
     java
     application
+    jacoco
     kotlin("jvm") version "1.3.31"
 }
 
@@ -14,6 +15,7 @@ repositories {
 }
 
 val ktorVersion = "1.2.1"
+val junitVersion = "5.4.2"
 
 dependencies {
     implementation(kotlin("stdlib-jdk8"))
@@ -24,13 +26,25 @@ dependencies {
     implementation("io.ktor", "ktor-auth", ktorVersion)
     implementation("io.ktor", "ktor-freemarker", ktorVersion)
     implementation("ch.qos.logback", "logback-classic", "1.2.3")
-    testCompile("junit", "junit", "4.12")
+    testCompile(kotlin("test-junit5"))
+    testCompile("org.junit.jupiter", "junit-jupiter-api", junitVersion)
+    testCompile("org.junit.jupiter", "junit-jupiter-engine", junitVersion)
 }
 
 application {
     mainClassName = "io.ktor.server.cio.EngineMain"
 }
 
+tasks.withType<Test> {
+    useJUnitPlatform()
+    jacoco
+}
+
+tasks.withType<JacocoReport> {
+    reports {
+        xml.isEnabled = true
+    }
+}
 
 configure<JavaPluginConvention> {
     sourceCompatibility = JavaVersion.VERSION_1_8
