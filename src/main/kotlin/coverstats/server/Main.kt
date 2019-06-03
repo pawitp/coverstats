@@ -3,10 +3,15 @@ package coverstats.server
 import com.google.gson.FieldNamingPolicy
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
+import coverstats.server.datastore.DataStore
+import coverstats.server.datastore.memory.MemoryDataStore
 import coverstats.server.exceptions.UnknownScmException
+import coverstats.server.models.datastore.Repository
+import coverstats.server.models.scm.ScmPermission
 import coverstats.server.models.session.UserSession
 import coverstats.server.scm.GitHubProvider
 import coverstats.server.scm.ScmProvider
+import coverstats.server.utils.generateToken
 import freemarker.cache.ClassTemplateLoader
 import io.ktor.application.*
 import io.ktor.auth.*
@@ -63,6 +68,8 @@ val providers: Map<String, ScmProvider> = config.getObject("scm").map { e ->
     }
 }.toMap()
 
+val dataStore: DataStore = MemoryDataStore()
+
 val RepoNameAttribute = AttributeKey<String>("RepoName")
 val ScmProviderAttribute = AttributeKey<ScmProvider>("ScmProvider")
 
@@ -75,7 +82,7 @@ fun Application.module() {
         mdc("session") { call -> call.request.cookies["SESSION"] }
     }
     install(StatusPages) {
-        exception<UnknownScmException> { e ->
+        exception<UnknownScmException> {
             call.respond(HttpStatusCode.NotFound)
         }
     }
@@ -135,13 +142,21 @@ fun Application.module() {
                     val session = call.sessions.get<UserSession>()!!
                     val fullRepoName = call.attributes[RepoNameAttribute]
                     val scmProvider = call.attributes[ScmProviderAttribute]
+                    val repoPermission = session.repositories.getValue(fullRepoName)
+
+                    var repo = dataStore.getRepositoryByName(scmProvider.name, fullRepoName)
+                    if (repo == null) {
+                        repo = Repository(scmProvider.name, fullRepoName, generateToken())
+                        dataStore.saveRepository(repo)
+                    }
 
                     val commits = scmProvider.getCommits(session.token, fullRepoName)
                     call.respond(
                         FreeMarkerContent(
                             "repo.ftl",
                             mapOf(
-                                "repoName" to fullRepoName,
+                                "repo" to repo,
+                                "isAdmin" to (repoPermission == ScmPermission.ADMIN),
                                 "commits" to commits
                             )
                         )

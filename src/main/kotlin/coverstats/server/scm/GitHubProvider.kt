@@ -1,10 +1,8 @@
 package coverstats.server.scm
 
-import coverstats.server.models.github.GitHubCommit
-import coverstats.server.models.github.GitHubInstallations
-import coverstats.server.models.github.GitHubRepositories
-import coverstats.server.models.github.GitHubUser
+import coverstats.server.models.github.*
 import coverstats.server.models.scm.ScmCommit
+import coverstats.server.models.scm.ScmPermission
 import coverstats.server.models.session.UserSession
 import io.ktor.auth.OAuthAccessTokenResponse
 import io.ktor.auth.OAuthServerSettings
@@ -58,7 +56,10 @@ class GitHubProvider(
             }
         }
 
-        val repositories = repositoryPromises.flatMap { it.await().repositories }.map { it.fullName }
+        val repositories = repositoryPromises
+            .flatMap { it.await().repositories }
+            .map { it.fullName to it.permissions.toScmPermission() }
+            .toMap()
 
         val user = userPromise.await()
 
@@ -73,4 +74,10 @@ class GitHubProvider(
         return ghCommits.map { ScmCommit(it.sha, it.commit.author.name, it.commit.message) }
     }
 
+}
+
+private fun GitHubPermission.toScmPermission(): ScmPermission {
+    if (admin) return ScmPermission.ADMIN
+    else if (push) return ScmPermission.WRITE
+    else return ScmPermission.READ
 }

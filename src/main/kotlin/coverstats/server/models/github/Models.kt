@@ -8,7 +8,10 @@ data class GitHubInstallation(val id: Int)
 
 data class GitHubRepositories(val totalCount: Int, val repositories: List<GitHubRepository>)
 
-data class GitHubRepository(val fullName: String)
+data class GitHubRepository(
+    val fullName: String,
+    val permissions: GitHubPermission
+)
 
 data class GitHubCommit(
     val sha: String,
@@ -22,4 +25,10 @@ data class GitHubCommitDetail(
 
 data class GitHubAuthor(
     val name: String
+)
+
+data class GitHubPermission(
+    val admin: Boolean,
+    val push: Boolean,
+    val pull: Boolean
 )
