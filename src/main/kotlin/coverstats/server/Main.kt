@@ -3,6 +3,9 @@ package coverstats.server
 import com.google.gson.FieldNamingPolicy
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
+import coverstats.server.controllers.auth
+import coverstats.server.controllers.home
+import coverstats.server.controllers.repos
 import coverstats.server.datastore.DataStore
 import coverstats.server.datastore.memory.MemoryDataStore
 import coverstats.server.exceptions.UnknownScmException
@@ -48,10 +51,10 @@ val httpClient = HttpClient {
     }
 }
 
-val config: Config = ConfigFactory.load()
-val httpsMode = config.getBoolean("security.httpsRedirect")
+private val config: Config = ConfigFactory.load()
+private val httpsMode = config.getBoolean("security.httpsRedirect")
 
-val providers: Map<String, ScmProvider> = config.getObject("scm").map { e ->
+private val scmProviders: Map<String, ScmProvider> = config.getObject("scm").map { e ->
     val name = e.key
     val subConfig = config.getConfig("scm.$name")
     val type = subConfig.getString("type")
@@ -69,7 +72,7 @@ val providers: Map<String, ScmProvider> = config.getObject("scm").map { e ->
     }
 }.toMap()
 
-val dataStore: DataStore = MemoryDataStore()
+private val dataStore: DataStore = MemoryDataStore()
 
 val RepoNameAttribute = AttributeKey<String>("RepoName")
 val ScmProviderAttribute = AttributeKey<ScmProvider>("ScmProvider")
@@ -106,7 +109,7 @@ fun Application.module() {
     }
     install(Authentication) {
         oauth {
-            providerLookup = { providers[parameters["scm"]]?.oAuthServerSettings ?: throw UnknownScmException() }
+            providerLookup = { scmProviders[parameters["scm"]]?.oAuthServerSettings ?: throw UnknownScmException() }
             client = httpClient
             urlProvider = { settings -> redirectUrl(settings) }
             skipWhen { call ->
@@ -117,82 +120,11 @@ fun Application.module() {
     }
 
     routing {
-        get("/") {
-            val session = call.sessions.get<UserSession>()
-            if (session != null) {
-                call.respondRedirect("/repos/${session.scm}")
-            } else {
-                call.respond(FreeMarkerContent("index.ftl", null))
-            }
-        }
+        home()
 
         authenticate {
-            get("/repos/{scm}") {
-                val session = call.sessions.get<UserSession>()!!
-                call.respond(FreeMarkerContent("repos.ftl", mapOf("session" to session)))
-            }
-
-            route("/repos/{scm}/{org}/{name}") {
-                intercept(ApplicationCallPipeline.Call) {
-                    val session = call.sessions.get<UserSession>()!!
-                    val fullRepoName = call.parameters["org"]!! + "/" + call.parameters["name"]!!
-
-                    call.attributes.put(RepoNameAttribute, fullRepoName)
-                    call.attributes.put(ScmProviderAttribute, providers[call.parameters["scm"]]!!)
-
-                    // Permission check
-                    if (!session.repositories.contains(fullRepoName)) {
-                        call.respond(HttpStatusCode.NotFound)
-                        return@intercept finish()
-                    }
-                }
-
-                get {
-                    val session = call.sessions.get<UserSession>()!!
-                    val fullRepoName = call.attributes[RepoNameAttribute]
-                    val scmProvider = call.attributes[ScmProviderAttribute]
-                    val repoPermission = session.repositories.getValue(fullRepoName)
-
-                    var repo = dataStore.getRepositoryByName(scmProvider.name, fullRepoName)
-                    if (repo == null) {
-                        repo = Repository(scmProvider.name, fullRepoName, generateToken())
-                        dataStore.saveRepository(repo)
-                    }
-
-                    val commits = scmProvider.getCommits(session.token, fullRepoName)
-                    call.respond(
-                        FreeMarkerContent(
-                            "repo.ftl",
-                            mapOf(
-                                "repo" to repo,
-                                "isAdmin" to (repoPermission == ScmPermission.ADMIN),
-                                "commits" to commits
-                            )
-                        )
-                    )
-                }
-            }
-
-            get("/oauth/{scm}") {
-                val principal = call.authentication.principal<OAuthAccessTokenResponse.OAuth2>()
-                val scm = providers[call.parameters["scm"]]
-                if (principal != null && scm != null) {
-                    val userSession = scm.processOAuth(principal, this)
-                    call.sessions.set(userSession)
-
-                    val returnPath = call.parameters["return"]
-                    if (returnPath != null &&
-                        // Prevent specifying full-URL for return path (possible attack to redirect off-site?)
-                        returnPath.startsWith("/")
-                    ) {
-                        call.respondRedirect(returnPath)
-                    } else {
-                        call.respondRedirect("/repos/${userSession.scm}")
-                    }
-                } else {
-                    call.respondText("Login failed")
-                }
-            }
+            repos(dataStore, scmProviders)
+            auth(scmProviders)
         }
     }
 }
