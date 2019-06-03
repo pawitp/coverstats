@@ -1,8 +1,10 @@
 package coverstats.server.scm
 
+import coverstats.server.models.github.GitHubCommit
 import coverstats.server.models.github.GitHubInstallations
 import coverstats.server.models.github.GitHubRepositories
 import coverstats.server.models.github.GitHubUser
+import coverstats.server.models.scm.ScmCommit
 import coverstats.server.models.session.UserSession
 import io.ktor.auth.OAuthAccessTokenResponse
 import io.ktor.auth.OAuthServerSettings
@@ -61,6 +63,14 @@ class GitHubProvider(
         val user = userPromise.await()
 
         return UserSession(name, principal.accessToken, user.login, user.name, repositories)
+    }
+
+    override suspend fun getCommits(token: String, repository: String): List<ScmCommit> {
+        val ghCommits = httpClient.get<List<GitHubCommit>>("$baseApiPath/repos/$repository/commits") {
+            header("Authorization", "Bearer $token")
+        }
+
+        return ghCommits.map { ScmCommit(it.sha, it.commit.author.name, it.commit.message) }
     }
 
 }

@@ -8,10 +8,7 @@ import coverstats.server.models.session.UserSession
 import coverstats.server.scm.GitHubProvider
 import coverstats.server.scm.ScmProvider
 import freemarker.cache.ClassTemplateLoader
-import io.ktor.application.Application
-import io.ktor.application.ApplicationCall
-import io.ktor.application.call
-import io.ktor.application.install
+import io.ktor.application.*
 import io.ktor.auth.*
 import io.ktor.client.HttpClient
 import io.ktor.client.features.json.GsonSerializer
@@ -28,8 +25,10 @@ import io.ktor.response.respond
 import io.ktor.response.respondRedirect
 import io.ktor.response.respondText
 import io.ktor.routing.get
+import io.ktor.routing.route
 import io.ktor.routing.routing
 import io.ktor.sessions.*
+import io.ktor.util.AttributeKey
 import org.slf4j.event.Level
 
 fun main(args: Array<String>) {
@@ -63,6 +62,9 @@ val providers: Map<String, ScmProvider> = config.getObject("scm").map { e ->
         throw RuntimeException("Unknown SCM: $type")
     }
 }.toMap()
+
+val RepoNameAttribute = AttributeKey<String>("RepoName")
+val ScmProviderAttribute = AttributeKey<ScmProvider>("ScmProvider")
 
 fun Application.module() {
     install(DefaultHeaders)
@@ -114,13 +116,36 @@ fun Application.module() {
                 call.respond(FreeMarkerContent("repos.ftl", mapOf("session" to session)))
             }
 
-            get("/repos/{scm}/{org}/{name}") {
-                val session = call.sessions.get<UserSession>()!!
-                val fullRepoName = call.parameters["org"]!! + "/" + call.parameters["name"]!!
-                if (!session.repositories.contains(fullRepoName)) {
-                    call.respond(HttpStatusCode.NotFound)
-                } else {
-                    call.respondText("Repo Page: $fullRepoName")
+            route("/repos/{scm}/{org}/{name}") {
+                intercept(ApplicationCallPipeline.Call) {
+                    val session = call.sessions.get<UserSession>()!!
+                    val fullRepoName = call.parameters["org"]!! + "/" + call.parameters["name"]!!
+
+                    call.attributes.put(RepoNameAttribute, fullRepoName)
+                    call.attributes.put(ScmProviderAttribute, providers[call.parameters["scm"]]!!)
+
+                    // Permission check
+                    if (!session.repositories.contains(fullRepoName)) {
+                        call.respond(HttpStatusCode.NotFound)
+                        return@intercept finish()
+                    }
+                }
+
+                get {
+                    val session = call.sessions.get<UserSession>()!!
+                    val fullRepoName = call.attributes[RepoNameAttribute]
+                    val scmProvider = call.attributes[ScmProviderAttribute]
+
+                    val commits = scmProvider.getCommits(session.token, fullRepoName)
+                    call.respond(
+                        FreeMarkerContent(
+                            "repo.ftl",
+                            mapOf(
+                                "repoName" to fullRepoName,
+                                "commits" to commits
+                            )
+                        )
+                    )
                 }
             }
 
