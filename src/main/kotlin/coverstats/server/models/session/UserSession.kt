@@ -7,5 +7,8 @@ data class UserSession(
     val token: String,
     val username: String,
     val fullName: String,
-    val repositories: Map<String, ScmPermission>
+
+    // We need these two maps because session does not support objects
+    val repositories: Map<String, ScmPermission>,
+    val installationIds: Map<String, String>
 )

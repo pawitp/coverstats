@@ -1,16 +1,28 @@
 package coverstats.server.scm
 
+import com.auth0.jwt.JWT
+import com.auth0.jwt.algorithms.Algorithm
+import coverstats.server.models.datastore.Repository
 import coverstats.server.models.github.*
 import coverstats.server.models.scm.ScmCommit
+import coverstats.server.models.scm.ScmFile
 import coverstats.server.models.scm.ScmPermission
+import coverstats.server.models.scm.ScmRepository
 import coverstats.server.models.session.UserSession
 import io.ktor.auth.OAuthAccessTokenResponse
 import io.ktor.auth.OAuthServerSettings
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import io.ktor.client.request.header
+import io.ktor.client.request.post
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.async
+import org.bouncycastle.util.io.pem.PemReader
+import java.io.StringReader
+import java.security.KeyFactory
+import java.security.interfaces.RSAPrivateKey
+import java.security.spec.RSAPrivateKeySpec
+import java.util.*
 
 class GitHubProvider(
     override val name: String,
@@ -18,8 +30,12 @@ class GitHubProvider(
     val baseApiPath: String,
     val clientId: String,
     val clientSecret: String,
+    val appId: String,
+    val privateKey: String,
     val httpClient: HttpClient
 ) : ScmProvider {
+
+    private val jwtAlgorithm = loadPrivateKey(privateKey)
 
     override val oAuthServerSettings: OAuthServerSettings = OAuthServerSettings.OAuth2ServerSettings(
         name = name,
@@ -49,21 +65,21 @@ class GitHubProvider(
 
         val repositoryPromises = installations.installations.map {
             scope.async {
-                httpClient.get<GitHubRepositories>("$baseApiPath/user/installations/${it.id}/repositories") {
+                val installationId = it.id.toString()
+                httpClient.get<GitHubRepositories>("$baseApiPath/user/installations/$installationId/repositories") {
                     header("Authorization", "Bearer $accessToken")
                     header("Accept", "application/vnd.github.machine-man-preview+json")
-                }
+                }.repositories.map { ScmRepository(it.fullName, it.permissions.toScmPermission(), installationId)}
             }
         }
 
-        val repositories = repositoryPromises
-            .flatMap { it.await().repositories }
-            .map { it.fullName to it.permissions.toScmPermission() }
-            .toMap()
+        val repositories = repositoryPromises.flatMap { it.await() }
+        val repoPermission = repositories.map { it.name to it.permission }.toMap()
+        val installationIds = repositories.map { it.name to it.installationId }.toMap()
 
         val user = userPromise.await()
 
-        return UserSession(name, principal.accessToken, user.login, user.name, repositories)
+        return UserSession(name, principal.accessToken, user.login, user.name, repoPermission, installationIds)
     }
 
     override suspend fun getCommits(token: String, repository: String): List<ScmCommit> {
@@ -74,10 +90,50 @@ class GitHubProvider(
         return ghCommits.map { ScmCommit(it.sha, it.commit.author.name, it.commit.message) }
     }
 
+    override suspend fun getFiles(token: String, repository: String, commitId: String): List<ScmFile> {
+        val ghTree = httpClient.get<GitHubTree>("$baseApiPath/repos/$repository/git/trees/$commitId?recursive=1") {
+            header("Authorization", "Bearer $token")
+        }
+        if (ghTree.truncated) {
+            throw RuntimeException("Truncated responses not supported")
+        }
+
+        return ghTree.tree.map { ScmFile(it.path, it.type == "tree") }
+    }
+
+    override suspend fun getAppToken(repo: Repository): String {
+        val now = Date()
+        val token = JWT.create()
+            .withIssuer(appId)
+            .withIssuedAt(now)
+            .withExpiresAt(Date(now.time + 60000)) // 10 minutes
+            .sign(jwtAlgorithm)
+
+        val installationToken = httpClient.post<GitHubToken>("$baseApiPath/app/installations/${repo.installationId}/access_tokens") {
+            header("Authorization", "Bearer $token")
+            header("Accept", "application/vnd.github.machine-man-preview+json")
+        }
+
+        // TODO: Cache token until expiry
+        return installationToken.token
+    }
+
+}
+
+private fun loadPrivateKey(pemKey: String): Algorithm {
+    val pemReader = PemReader(StringReader(pemKey))
+    val rsaPk = org.bouncycastle.asn1.pkcs.RSAPrivateKey.getInstance(pemReader.readPemObject().content)
+    val kf = KeyFactory.getInstance("RSA")
+    val keySpec = RSAPrivateKeySpec(rsaPk.modulus, rsaPk.privateExponent)
+    val privateKey = kf.generatePrivate(keySpec) as RSAPrivateKey
+
+    return Algorithm.RSA256(null, privateKey)
 }
 
 private fun GitHubPermission.toScmPermission(): ScmPermission {
-    if (admin) return ScmPermission.ADMIN
-    else if (push) return ScmPermission.WRITE
-    else return ScmPermission.READ
+    return when {
+        admin -> ScmPermission.ADMIN
+        push -> ScmPermission.WRITE
+        else -> ScmPermission.READ
+    }
 }

@@ -44,11 +44,17 @@ fun Route.repos(dataStore: DataStore, scmProviders: Map<String, ScmProvider>) {
             val session = call.sessions.get<UserSession>()!!
             val fullRepoName = call.attributes[RepoNameAttribute]
             val scmProvider = call.attributes[ScmProviderAttribute]
-            val repoPermission = session.repositories.getValue(fullRepoName)
+            val permission = session.repositories.getValue(fullRepoName)
+            val installationId = session.installationIds.getValue(fullRepoName)
 
             var repo = dataStore.getRepositoryByName(scmProvider.name, fullRepoName)
             if (repo == null) {
-                repo = Repository(scmProvider.name, fullRepoName, generateToken())
+                repo = Repository(scmProvider.name, fullRepoName, generateToken(), installationId)
+                dataStore.saveRepository(repo)
+            }
+            if (repo.installationId != installationId) {
+                // Installation ID has changed, update it
+                repo = repo.copy(installationId = installationId)
                 dataStore.saveRepository(repo)
             }
 
@@ -58,7 +64,7 @@ fun Route.repos(dataStore: DataStore, scmProviders: Map<String, ScmProvider>) {
                     "repo.ftl",
                     mapOf(
                         "repo" to repo,
-                        "isAdmin" to (repoPermission == ScmPermission.ADMIN),
+                        "isAdmin" to (permission == ScmPermission.ADMIN),
                         "commits" to commits
                     )
                 )

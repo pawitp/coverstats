@@ -17,9 +17,8 @@ class MemoryDataStore : DataStore {
     override suspend fun getRepositoryByToken(token: String): Repository? = repoByToken[token]
 
     override suspend fun saveRepository(repo: Repository) {
-        val nameWithScm = "${repo.scm}/${repo.name}"
-        repoByName[nameWithScm] = repo
-        repoByToken[nameWithScm] = repo
+        repoByName["${repo.scm}/${repo.name}"] = repo
+        repoByToken[repo.uploadToken] = repo
     }
 
 }

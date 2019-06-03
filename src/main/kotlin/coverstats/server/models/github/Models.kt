@@ -1,5 +1,7 @@
 package coverstats.server.models.github
 
+import java.util.*
+
 data class GitHubUser(val login: String, val name: String)
 
 data class GitHubInstallations(val totalCount: Int, val installations: List<GitHubInstallation>)
@@ -31,4 +33,19 @@ data class GitHubPermission(
     val admin: Boolean,
     val push: Boolean,
     val pull: Boolean
+)
+
+data class GitHubTree(
+    val tree: List<GitHubFile>,
+    val truncated: Boolean
+)
+
+data class GitHubFile(
+    val path: String,
+    val type: String
+)
+
+data class GitHubToken(
+    val token: String,
+    val expiresAt: Date
 )

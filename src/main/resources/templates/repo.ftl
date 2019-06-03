@@ -7,7 +7,7 @@ Commits:
     </#list>
 </ul>
 <#if isAdmin>
-    <p>Token for upload: <tt>${repo.token}</tt></p>
+    <p>Token for upload: <tt>${repo.uploadToken}</tt></p>
 </#if>
 </body>
 </html>

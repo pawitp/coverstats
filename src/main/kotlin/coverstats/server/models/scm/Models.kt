@@ -9,3 +9,14 @@ data class ScmCommit(
     val author: String,
     val message: String
 )
+
+data class ScmFile(
+    val path: String,
+    val isDirectory: Boolean
+)
+
+data class ScmRepository(
+    val name: String,
+    val permission: ScmPermission,
+    val installationId: String
+)

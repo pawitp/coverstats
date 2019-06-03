@@ -1,20 +1,23 @@
 package coverstats.server
 
 import com.google.gson.FieldNamingPolicy
+import com.google.gson.JsonDeserializationContext
+import com.google.gson.JsonDeserializer
+import com.google.gson.JsonElement
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
 import coverstats.server.controllers.auth
 import coverstats.server.controllers.home
 import coverstats.server.controllers.repos
+import coverstats.server.controllers.upload
+import coverstats.server.coverage.processors.CoverageProcessor
+import coverstats.server.coverage.processors.JacocoProcessor
 import coverstats.server.datastore.DataStore
 import coverstats.server.datastore.memory.MemoryDataStore
 import coverstats.server.exceptions.UnknownScmException
-import coverstats.server.models.datastore.Repository
-import coverstats.server.models.scm.ScmPermission
 import coverstats.server.models.session.UserSession
 import coverstats.server.scm.GitHubProvider
 import coverstats.server.scm.ScmProvider
-import coverstats.server.utils.generateToken
 import freemarker.cache.ClassTemplateLoader
 import io.ktor.application.*
 import io.ktor.auth.*
@@ -23,21 +26,20 @@ import io.ktor.client.features.json.GsonSerializer
 import io.ktor.client.features.json.JsonFeature
 import io.ktor.features.*
 import io.ktor.freemarker.FreeMarker
-import io.ktor.freemarker.FreeMarkerContent
 import io.ktor.http.HttpStatusCode
 import io.ktor.request.host
 import io.ktor.request.path
 import io.ktor.request.port
 import io.ktor.request.queryString
 import io.ktor.response.respond
-import io.ktor.response.respondRedirect
-import io.ktor.response.respondText
-import io.ktor.routing.get
-import io.ktor.routing.route
 import io.ktor.routing.routing
 import io.ktor.sessions.*
 import io.ktor.util.AttributeKey
 import org.slf4j.event.Level
+import java.lang.reflect.Type
+import java.time.Instant
+import java.time.LocalDateTime
+import java.time.ZoneId
 
 fun main(args: Array<String>) {
     io.ktor.server.cio.EngineMain.main(args)
@@ -47,6 +49,7 @@ val httpClient = HttpClient {
     install(JsonFeature) {
         serializer = GsonSerializer {
             setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES)
+            setDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'")
         }
     }
 }
@@ -65,12 +68,16 @@ private val scmProviders: Map<String, ScmProvider> = config.getObject("scm").map
             subConfig.getString("baseApiPath"),
             subConfig.getString("clientId"),
             subConfig.getString("clientSecret"),
+            subConfig.getString("appId"),
+            subConfig.getString("privateKey"),
             httpClient
         )
     } else {
         throw RuntimeException("Unknown SCM: $type")
     }
 }.toMap()
+
+private val coverageProcessors: List<CoverageProcessor> = listOf(JacocoProcessor)
 
 private val dataStore: DataStore = MemoryDataStore()
 
@@ -121,6 +128,7 @@ fun Application.module() {
 
     routing {
         home()
+        upload(dataStore, scmProviders, coverageProcessors)
 
         authenticate {
             repos(dataStore, scmProviders)
