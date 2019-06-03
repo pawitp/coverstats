@@ -49,6 +49,7 @@ val httpClient = HttpClient {
 }
 
 val config: Config = ConfigFactory.load()
+val httpsMode = config.getBoolean("security.httpsRedirect")
 
 val providers: Map<String, ScmProvider> = config.getObject("scm").map { e ->
     val name = e.key
@@ -76,6 +77,13 @@ val ScmProviderAttribute = AttributeKey<ScmProvider>("ScmProvider")
 fun Application.module() {
     install(DefaultHeaders)
     install(XForwardedHeaderSupport)
+
+    if (httpsMode) {
+        install(HttpsRedirect) {
+            permanentRedirect = true
+        }
+    }
+
     install(CallLogging) {
         level = Level.INFO
         mdc("ip") { call -> call.request.origin.remoteHost }
@@ -93,6 +101,7 @@ fun Application.module() {
         // TODO: Switch to another session storage
         cookie<UserSession>("SESSION", SessionStorageMemory()) {
             cookie.path = "/"
+            cookie.secure = httpsMode
         }
     }
     install(Authentication) {

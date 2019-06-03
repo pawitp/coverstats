@@ -3,6 +3,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 plugins {
     java
     application
+    war
     jacoco
     kotlin("jvm") version "1.3.31"
 }
@@ -20,6 +21,7 @@ val junitVersion = "5.4.2"
 dependencies {
     implementation(kotlin("stdlib-jdk8"))
     implementation("io.ktor", "ktor-server-cio", ktorVersion)
+    implementation("io.ktor", "ktor-server-servlet", ktorVersion)
     implementation("io.ktor", "ktor-server-sessions", ktorVersion)
     implementation("io.ktor", "ktor-client-cio", ktorVersion)
     implementation("io.ktor", "ktor-client-gson", ktorVersion)
