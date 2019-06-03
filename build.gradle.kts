@@ -30,6 +30,8 @@ dependencies {
     implementation("ch.qos.logback", "logback-classic", "1.2.3")
     implementation("com.auth0", "java-jwt", "3.8.1")
     implementation("org.bouncycastle", "bcprov-jdk15on", "1.61")
+    implementation("org.apache.commons", "commons-text", "1.6")
+    implementation("io.github.microutils", "kotlin-logging", "1.6.26")
     testCompile(kotlin("test-junit5"))
     testCompile("org.junit.jupiter", "junit-jupiter-api", junitVersion)
     testCompile("org.junit.jupiter", "junit-jupiter-engine", junitVersion)

@@ -10,9 +10,13 @@ data class ScmCommit(
     val message: String
 )
 
+enum class ScmFileType {
+    FILE, DIRECTORY
+}
+
 data class ScmFile(
     val path: String,
-    val isDirectory: Boolean
+    val type: ScmFileType
 )
 
 data class ScmRepository(

@@ -4,10 +4,7 @@ import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
 import coverstats.server.models.datastore.Repository
 import coverstats.server.models.github.*
-import coverstats.server.models.scm.ScmCommit
-import coverstats.server.models.scm.ScmFile
-import coverstats.server.models.scm.ScmPermission
-import coverstats.server.models.scm.ScmRepository
+import coverstats.server.models.scm.*
 import coverstats.server.models.session.UserSession
 import io.ktor.auth.OAuthAccessTokenResponse
 import io.ktor.auth.OAuthServerSettings
@@ -69,7 +66,7 @@ class GitHubProvider(
                 httpClient.get<GitHubRepositories>("$baseApiPath/user/installations/$installationId/repositories") {
                     header("Authorization", "Bearer $accessToken")
                     header("Accept", "application/vnd.github.machine-man-preview+json")
-                }.repositories.map { ScmRepository(it.fullName, it.permissions.toScmPermission(), installationId)}
+                }.repositories.map { ScmRepository(it.fullName, it.permissions.toScmPermission(), installationId) }
             }
         }
 
@@ -98,7 +95,7 @@ class GitHubProvider(
             throw RuntimeException("Truncated responses not supported")
         }
 
-        return ghTree.tree.map { ScmFile(it.path, it.type == "tree") }
+        return ghTree.tree.map { ScmFile(it.path, it.type.toScmFileType()) }
     }
 
     override suspend fun getAppToken(repo: Repository): String {
@@ -109,10 +106,11 @@ class GitHubProvider(
             .withExpiresAt(Date(now.time + 60000)) // 10 minutes
             .sign(jwtAlgorithm)
 
-        val installationToken = httpClient.post<GitHubToken>("$baseApiPath/app/installations/${repo.installationId}/access_tokens") {
-            header("Authorization", "Bearer $token")
-            header("Accept", "application/vnd.github.machine-man-preview+json")
-        }
+        val installationToken =
+            httpClient.post<GitHubToken>("$baseApiPath/app/installations/${repo.installationId}/access_tokens") {
+                header("Authorization", "Bearer $token")
+                header("Accept", "application/vnd.github.machine-man-preview+json")
+            }
 
         // TODO: Cache token until expiry
         return installationToken.token
@@ -135,5 +133,12 @@ private fun GitHubPermission.toScmPermission(): ScmPermission {
         admin -> ScmPermission.ADMIN
         push -> ScmPermission.WRITE
         else -> ScmPermission.READ
+    }
+}
+
+private fun String.toScmFileType(): ScmFileType {
+    return when (this) {
+        "tree" -> ScmFileType.DIRECTORY
+        else -> ScmFileType.FILE
     }
 }
