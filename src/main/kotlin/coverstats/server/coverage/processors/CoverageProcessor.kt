@@ -2,50 +2,58 @@ package coverstats.server.coverage.processors
 
 import coverstats.server.models.coverage.CoverageFile
 import coverstats.server.models.coverage.CoverageReport
+import coverstats.server.models.coverage.CoverageStatus
+import coverstats.server.models.datastore.Repository
 import coverstats.server.models.scm.ScmFile
-import coverstats.server.models.scm.ScmFileType
-import java.lang.RuntimeException
 
 interface CoverageProcessor {
     fun readCoverage(report: String, scmFiles: List<ScmFile>): List<CoverageFile>?
 }
 
-fun List<CoverageProcessor>.readCoverage(report: String, scmFiles: List<ScmFile>): CoverageReport {
+fun List<CoverageProcessor>.readCoverage(report: String, scmFiles: List<ScmFile>): List<CoverageFile> {
     for (processor in this) {
         val parsedReport = processor.readCoverage(report, scmFiles)
         if (parsedReport != null) {
-            return generateReport(parsedReport)
+            return parsedReport
         }
     }
     throw RuntimeException("Unable to read coverage report")
 }
 
-fun generateReport(coverageFiles: List<CoverageFile>): CoverageReport {
+fun List<CoverageFile>.toReport(repo: Repository, commitId: String): CoverageReport {
     // Sanity check that we don't have any duplicate files
-    val paths = coverageFiles.map { it.path }
+    val paths = this.map { it.path }
     if (paths.size != paths.toSet().size) {
         throw RuntimeException("Duplicate files found in report")
     }
 
-    val directoryReports = mutableMapOf<String, CoverageFile>()
-    for (file in coverageFiles) {
-        var filePath = file.path
-        while (filePath != "") {
-            val lastIndex = filePath.lastIndexOf("/").let { if (it == -1) 0 else it }
-            filePath = filePath.substring(0, lastIndex)
-            val dirReport = directoryReports[filePath]
-                ?: CoverageFile(filePath, ScmFileType.DIRECTORY, listOf(), 0, 0, 0, 0, 0, 0)
-            val newDirReport = dirReport.copy(
-                missedLines = dirReport.missedLines + file.missedLines,
-                coveredLines = dirReport.coveredLines + file.coveredLines,
-                missedInstructions = dirReport.missedInstructions + file.missedInstructions,
-                coveredInstructions = dirReport.coveredInstructions + file.coveredInstructions,
-                missedBranches = dirReport.missedBranches + file.missedBranches,
-                coveredBranches = dirReport.coveredBranches + file.coveredBranches
-            )
-            directoryReports[filePath] = newDirReport
+    var missedStatements = 0
+    var coveredStatements = 0
+    var missedBranches = 0
+    var coveredBranches = 0
+
+    for (file in this) {
+        for (stmt in file.statements) {
+            coveredBranches += stmt.coveredBranches
+            missedBranches += stmt.missedBranches
+
+            if (stmt.status != CoverageStatus.NONE) {
+                coveredStatements++
+            } else {
+                missedStatements++
+            }
+
         }
     }
 
-    return CoverageReport(coverageFiles + directoryReports.values)
+    return CoverageReport(
+        repo.scm,
+        repo.name,
+        commitId,
+        this,
+        missedStatements,
+        coveredStatements,
+        missedBranches,
+        coveredBranches
+    )
 }

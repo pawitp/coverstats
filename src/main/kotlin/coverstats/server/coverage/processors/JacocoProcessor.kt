@@ -1,7 +1,7 @@
 package coverstats.server.coverage.processors
 
 import coverstats.server.models.coverage.CoverageFile
-import coverstats.server.models.coverage.CoverageLine
+import coverstats.server.models.coverage.CoverageStatement
 import coverstats.server.models.coverage.CoverageStatus
 import coverstats.server.models.scm.ScmFile
 import coverstats.server.models.scm.ScmFileType
@@ -91,22 +91,16 @@ object JacocoProcessor : CoverageProcessor {
                         .sortedBy { lvDistance.apply(it.path, "${pkg.name}/${f.name}") }
                         .first()
 
+                    // For JaCoCo, a statement is a line
                     val coverageLines = f.lines.map {
                         val status = when {
                             it.coveredInstructions == 0 -> CoverageStatus.NONE
                             it.missedInstructions == 0 -> CoverageStatus.FULL
                             else -> CoverageStatus.PARTIAL
                         }
-                        CoverageLine(it.lineNumber, status)
+                        CoverageStatement(it.lineNumber, -1, -1, status, it.missedBranches, it.coveredBranches)
                     }
-                    val coveredLines = coverageLines.count { it.status != CoverageStatus.NONE }
-                    val missedLines = coverageLines.size - coveredLines
-                    CoverageFile(
-                        scmFile.path, ScmFileType.FILE, coverageLines,
-                        missedLines, coveredLines,
-                        f.lines.sumBy { it.missedInstructions }, f.lines.sumBy { it.coveredInstructions },
-                        f.lines.sumBy { it.missedBranches }, f.lines.sumBy { it.coveredBranches }
-                    )
+                    CoverageFile(scmFile.path, coverageLines)
                 }
             }
         }

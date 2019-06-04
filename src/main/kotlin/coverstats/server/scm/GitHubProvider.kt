@@ -21,6 +21,8 @@ import java.security.interfaces.RSAPrivateKey
 import java.security.spec.RSAPrivateKeySpec
 import java.util.*
 
+private val decoder = Base64.getMimeDecoder()
+
 class GitHubProvider(
     override val name: String,
     val basePath: String,
@@ -87,7 +89,7 @@ class GitHubProvider(
         return ghCommits.map { ScmCommit(it.sha, it.commit.author.name, it.commit.message) }
     }
 
-    override suspend fun getFiles(token: String, repository: String, commitId: String): List<ScmFile> {
+    override suspend fun getFiles(token: String, repository: String, commitId: String): ScmTree {
         val ghTree = httpClient.get<GitHubTree>("$baseApiPath/repos/$repository/git/trees/$commitId?recursive=1") {
             header("Authorization", "Bearer $token")
         }
@@ -95,7 +97,7 @@ class GitHubProvider(
             throw RuntimeException("Truncated responses not supported")
         }
 
-        return ghTree.tree.map { ScmFile(it.path, it.type.toScmFileType()) }
+        return ScmTree(ghTree.sha, ghTree.tree.map { ScmFile(it.path, it.type.toScmFileType()) })
     }
 
     override suspend fun getAppToken(repo: Repository): String {
@@ -114,6 +116,15 @@ class GitHubProvider(
 
         // TODO: Cache token until expiry
         return installationToken.token
+    }
+
+    override suspend fun getContent(token: String, repository: String, commitId: String, path: String): ByteArray {
+        val content =
+            httpClient.get<GitHubContent>("$baseApiPath/repos/$repository/contents/$path?ref=$commitId") {
+                header("Authorization", "Bearer $token")
+            }
+
+        return decoder.decode(content.content)
     }
 
 }

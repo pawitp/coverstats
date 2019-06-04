@@ -1,6 +1,6 @@
 package coverstats.server.coverage.processors
 
-import coverstats.server.models.coverage.CoverageLine
+import coverstats.server.models.coverage.CoverageStatement
 import coverstats.server.models.coverage.CoverageStatus
 import coverstats.server.models.scm.ScmFile
 import coverstats.server.models.scm.ScmFileType.DIRECTORY
@@ -61,34 +61,22 @@ class JacocoProcessorTest {
         assertEquals(7, coverageReport.size)
 
         val scmModel = coverageReport.getValue("src/main/kotlin/coverstats/server/models/scm/Models.kt")
-        assertEquals(FILE, scmModel.type)
-        assertEquals(4, scmModel.lines.size)
-        for (line in scmModel.lines) {
+        assertEquals(4, scmModel.statements.size)
+        for (line in scmModel.statements) {
             assertEquals(CoverageStatus.NONE, line.status)
+            assertEquals(0, line.missedBranches)
+            assertEquals(0, line.coveredBranches)
         }
-        assertEquals(4, scmModel.missedLines)
-        assertEquals(0, scmModel.coveredLines)
-        assertEquals(21, scmModel.missedInstructions)
-        assertEquals(0, scmModel.coveredInstructions)
-        assertEquals(0, scmModel.missedBranches)
-        assertEquals(0, scmModel.coveredBranches)
 
         val randomUtil = coverageReport.getValue("src/main/kotlin/coverstats/server/utils/RandomUtils.kt")
-        assertEquals(FILE, randomUtil.type)
-        assertEquals(5, randomUtil.lines.size)
-        assertEquals(0, randomUtil.missedLines)
-        assertEquals(5, randomUtil.coveredLines)
-        assertEquals(1, randomUtil.missedInstructions)
-        assertEquals(21, randomUtil.coveredInstructions)
-        assertEquals(0, randomUtil.missedBranches)
-        assertEquals(0, randomUtil.coveredBranches)
+        assertEquals(5, randomUtil.statements.size)
         assertEquals(listOf(
-            CoverageLine(6, CoverageStatus.PARTIAL),
-            CoverageLine(7, CoverageStatus.FULL),
-            CoverageLine(10, CoverageStatus.FULL),
-            CoverageLine(11, CoverageStatus.FULL),
-            CoverageLine(12, CoverageStatus.FULL)
-        ), randomUtil.lines)
+            CoverageStatement(6, -1, -1, CoverageStatus.PARTIAL, 1, 3),
+            CoverageStatement(7, -1, -1, CoverageStatus.FULL, 0, 0),
+            CoverageStatement(10, -1, -1, CoverageStatus.FULL, 0, 0),
+            CoverageStatement(11, -1, -1, CoverageStatus.FULL, 0, 0),
+            CoverageStatement(12, -1, -1, CoverageStatus.FULL, 0, 0)
+        ), randomUtil.statements)
     }
 
 }

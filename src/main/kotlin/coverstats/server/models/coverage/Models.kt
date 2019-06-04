@@ -1,26 +1,32 @@
 package coverstats.server.models.coverage
 
-import coverstats.server.models.scm.ScmFileType
-
 data class CoverageReport(
-    val files: List<CoverageFile>
-)
+    val scm: String,
+    val repo: String,
+    val commitId: String,
 
-data class CoverageFile(
-    val path: String,
-    val type: ScmFileType,
-    val lines: List<CoverageLine>,
-    val missedLines: Int,
-    val coveredLines: Int,
-    val missedInstructions: Int,
-    val coveredInstructions: Int,
+    val files: List<CoverageFile>,
+
+    // Summary for easy access in summary reports
+    val missedStatements: Int,
+    val coveredStatements: Int,
     val missedBranches: Int,
     val coveredBranches: Int
 )
 
-data class CoverageLine(
+data class CoverageFile(
+    val path: String,
+    val statements: List<CoverageStatement>
+)
+
+// Smallest unit of coverage. If start == end == -1, then the statement is the full line.
+data class CoverageStatement(
     val lineNumber: Int,
-    val status: CoverageStatus
+    val start: Int,
+    val end: Int,
+    val status: CoverageStatus,
+    val missedBranches: Int,
+    val coveredBranches: Int
 )
 
 enum class CoverageStatus {

@@ -1,6 +1,7 @@
 package coverstats.server.datastore.memory
 
 import coverstats.server.datastore.DataStore
+import coverstats.server.models.coverage.CoverageReport
 import coverstats.server.models.datastore.Repository
 import java.util.concurrent.ConcurrentHashMap
 
@@ -19,6 +20,15 @@ class MemoryDataStore : DataStore {
     override suspend fun saveRepository(repo: Repository) {
         repoByName["${repo.scm}/${repo.name}"] = repo
         repoByToken[repo.uploadToken] = repo
+    }
+
+    private val reportByName = ConcurrentHashMap<String, CoverageReport>()
+
+    override suspend fun getReportByCommitId(scm: String, repo: String, commitId: String): CoverageReport? =
+        reportByName["${scm}/${repo}/${commitId}"]
+
+    override suspend fun saveReport(report: CoverageReport) {
+        reportByName["${report.scm}/${report.repo}/${report.commitId}"] = report
     }
 
 }

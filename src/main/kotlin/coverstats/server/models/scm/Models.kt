@@ -14,6 +14,11 @@ enum class ScmFileType {
     FILE, DIRECTORY
 }
 
+data class ScmTree(
+    val commitId: String,
+    val files: List<ScmFile>
+)
+
 data class ScmFile(
     val path: String,
     val type: ScmFileType

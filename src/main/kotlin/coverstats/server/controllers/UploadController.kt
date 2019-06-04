@@ -2,6 +2,7 @@ package coverstats.server.controllers
 
 import coverstats.server.coverage.processors.CoverageProcessor
 import coverstats.server.coverage.processors.readCoverage
+import coverstats.server.coverage.processors.toReport
 import coverstats.server.datastore.DataStore
 import coverstats.server.scm.ScmProvider
 import coverstats.server.utils.copyToSuspend
@@ -16,7 +17,6 @@ import io.ktor.response.respondText
 import io.ktor.routing.Route
 import io.ktor.routing.post
 import java.io.ByteArrayOutputStream
-import java.lang.RuntimeException
 
 fun Route.upload(
     dataStore: DataStore,
@@ -60,10 +60,12 @@ fun Route.upload(
             else -> {
                 val scmProvider = scmProviders.getValue(repo.scm)
                 val tree = scmProvider.getFiles(scmProvider.getAppToken(repo), repo.name, commit!!)
-                val processedReport = coverageProcessors.readCoverage(report!!, tree)
+                val coverageFiles = coverageProcessors.readCoverage(report!!, tree.files)
+                val coverageReport = coverageFiles.toReport(repo, tree.commitId)
 
-                // TODO: Store report in database
-                // TOOD: Send status check
+                dataStore.saveReport(coverageReport)
+
+                // TODO: Send status check
                 call.respondText("OK")
             }
         }

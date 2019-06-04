@@ -36,6 +36,7 @@ data class GitHubPermission(
 )
 
 data class GitHubTree(
+    val sha: String,
     val tree: List<GitHubFile>,
     val truncated: Boolean
 )
@@ -48,4 +49,8 @@ data class GitHubFile(
 data class GitHubToken(
     val token: String,
     val expiresAt: Date
+)
+
+data class GitHubContent(
+    val content: String
 )

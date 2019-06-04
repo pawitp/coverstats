@@ -1,7 +1,9 @@
 package coverstats.server.coverage.processors
 
 import coverstats.server.models.coverage.CoverageFile
-import coverstats.server.models.scm.ScmFileType
+import coverstats.server.models.coverage.CoverageStatement
+import coverstats.server.models.coverage.CoverageStatus
+import coverstats.server.repoFixture
 import org.junit.jupiter.api.assertThrows
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -9,43 +11,39 @@ import kotlin.test.assertEquals
 class CoverageProcessorTest {
 
     @Test
-    fun test_generateReport_should_generate_directory_reports() {
+    fun test_generateReport_should_generate_summary_reports() {
         val coverageFiles = listOf(
-            CoverageFile("test/a/a.kt", ScmFileType.FILE, listOf(), 1, 2, 3, 4, 5, 6),
-            CoverageFile("test/a/b.kt", ScmFileType.FILE, listOf(), 10, 20, 30, 40, 50, 60),
-            CoverageFile("test/b.kt", ScmFileType.FILE, listOf(), 100, 200, 300, 400, 500, 600)
+            CoverageFile(
+                "test/a/b.kt", listOf(
+                    CoverageStatement(1, -1, -1, CoverageStatus.FULL, 0, 0),
+                    CoverageStatement(2, -1, -1, CoverageStatus.PARTIAL, 2, 0)
+                )
+            ),
+            CoverageFile(
+                "test/b.kt", listOf(
+                    CoverageStatement(1, -1, -1, CoverageStatus.NONE, 0, 1),
+                    CoverageStatement(2, -1, -1, CoverageStatus.FULL, 0, 0)
+                )
+            )
         )
-        val report = generateReport(coverageFiles).files.map { it.path to it }.toMap()
+        val report = coverageFiles.toReport(repoFixture, "commitId")
 
-        // Should contain all the existing files
-        assertEquals(coverageFiles[0], report.getValue("test/a/a.kt"))
-        assertEquals(coverageFiles[1], report.getValue("test/a/b.kt"))
-        assertEquals(coverageFiles[2], report.getValue("test/b.kt"))
-
-        // Should generate directory reports
-        assertEquals(
-            CoverageFile("test/a", ScmFileType.DIRECTORY, listOf(), 11, 22, 33, 44, 55, 66),
-            report.getValue("test/a")
-        )
-        assertEquals(
-            CoverageFile("test", ScmFileType.DIRECTORY, listOf(), 111, 222, 333, 444, 555, 666),
-            report.getValue("test")
-        )
-        assertEquals(
-            CoverageFile("", ScmFileType.DIRECTORY, listOf(), 111, 222, 333, 444, 555, 666),
-            report.getValue("")
-        )
+        assertEquals("scm", report.scm)
+        assertEquals("org/name", report.repo)
+        assertEquals("commitId", report.commitId)
+        assertEquals(1, report.missedStatements)
+        assertEquals(3, report.coveredStatements)
+        assertEquals(2, report.missedBranches)
+        assertEquals(1, report.coveredBranches)
     }
 
     @Test
     fun test_generateReport_should_error_when_there_are_duplicate_files() {
         assertThrows<RuntimeException> {
-            generateReport(
-                listOf(
-                    CoverageFile("test/a/a", ScmFileType.FILE, listOf(), 1, 2, 3, 4, 5, 6),
-                    CoverageFile("test/a/a", ScmFileType.FILE, listOf(), 10, 20, 30, 40, 50, 60)
-                )
-            )
+            listOf(
+                CoverageFile("test/a/a", listOf()),
+                CoverageFile("test/a/a", listOf())
+            ).toReport(repoFixture, "commitId")
         }
     }
 }
