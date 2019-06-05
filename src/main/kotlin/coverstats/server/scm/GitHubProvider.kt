@@ -12,8 +12,8 @@ import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import org.bouncycastle.util.io.pem.PemReader
 import java.io.StringReader
 import java.security.KeyFactory
@@ -44,41 +44,43 @@ class GitHubProvider(
         clientSecret = clientSecret
     )
 
-    override suspend fun processOAuth(principal: OAuthAccessTokenResponse.OAuth2, scope: CoroutineScope): UserSession {
-        val accessToken = principal.accessToken
+    override suspend fun processOAuth(principal: OAuthAccessTokenResponse.OAuth2): UserSession {
+        return coroutineScope {
+            val accessToken = principal.accessToken
 
-        // Fetch username
-        val userPromise = scope.async {
-            httpClient.get<GitHubUser>("$baseApiPath/user") {
-                header("Authorization", "Bearer $accessToken")
-                header("Accept", "application/vnd.github.machine-man-preview+json")
-            }
-        }
-
-        // Fetch repos
-        val installations =
-            httpClient.get<GitHubInstallations>("$baseApiPath/user/installations") {
-                header("Authorization", "Bearer $accessToken")
-                header("Accept", "application/vnd.github.machine-man-preview+json")
-            }
-
-        val repositoryPromises = installations.installations.map {
-            scope.async {
-                val installationId = it.id.toString()
-                httpClient.get<GitHubRepositories>("$baseApiPath/user/installations/$installationId/repositories") {
+            // Fetch username
+            val userPromise = async {
+                httpClient.get<GitHubUser>("$baseApiPath/user") {
                     header("Authorization", "Bearer $accessToken")
                     header("Accept", "application/vnd.github.machine-man-preview+json")
-                }.repositories.map { ScmRepository(it.fullName, it.permissions.toScmPermission(), installationId) }
+                }
             }
+
+            // Fetch repos
+            val installations =
+                httpClient.get<GitHubInstallations>("$baseApiPath/user/installations") {
+                    header("Authorization", "Bearer $accessToken")
+                    header("Accept", "application/vnd.github.machine-man-preview+json")
+                }
+
+            val repositoryPromises = installations.installations.map {
+                async {
+                    val installationId = it.id.toString()
+                    httpClient.get<GitHubRepositories>("$baseApiPath/user/installations/$installationId/repositories") {
+                        header("Authorization", "Bearer $accessToken")
+                        header("Accept", "application/vnd.github.machine-man-preview+json")
+                    }.repositories.map { ScmRepository(it.fullName, it.permissions.toScmPermission(), installationId) }
+                }
+            }
+
+            val repositories = repositoryPromises.flatMap { it.await() }
+            val repoPermission = repositories.map { it.name to it.permission }.toMap()
+            val installationIds = repositories.map { it.name to it.installationId }.toMap()
+
+            val user = userPromise.await()
+
+            UserSession(name, principal.accessToken, user.login, user.name, repoPermission, installationIds)
         }
-
-        val repositories = repositoryPromises.flatMap { it.await() }
-        val repoPermission = repositories.map { it.name to it.permission }.toMap()
-        val installationIds = repositories.map { it.name to it.installationId }.toMap()
-
-        val user = userPromise.await()
-
-        return UserSession(name, principal.accessToken, user.login, user.name, repoPermission, installationIds)
     }
 
     override suspend fun getCommits(token: String, repository: String): List<ScmCommit> {

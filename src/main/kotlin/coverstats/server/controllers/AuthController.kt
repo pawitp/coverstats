@@ -17,7 +17,7 @@ fun Route.auth(scmProviders: Map<String, ScmProvider>) {
         val principal = call.authentication.principal<OAuthAccessTokenResponse.OAuth2>()
         val scm = scmProviders[call.parameters["scm"]]
         if (principal != null && scm != null) {
-            val userSession = scm.processOAuth(principal, this)
+            val userSession = scm.processOAuth(principal)
             call.sessions.set(userSession)
 
             val returnPath = call.parameters["return"]
