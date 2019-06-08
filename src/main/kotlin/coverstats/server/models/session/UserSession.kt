@@ -4,7 +4,6 @@ import coverstats.server.models.scm.ScmPermission
 
 data class UserSession(
     val scm: String,
-    val token: String,
     val username: String,
     val fullName: String,
 

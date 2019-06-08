@@ -2,6 +2,7 @@ package coverstats.server.scm
 
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
+import com.github.benmanes.caffeine.cache.Caffeine
 import coverstats.server.models.datastore.Repository
 import coverstats.server.models.github.*
 import coverstats.server.models.scm.*
@@ -20,6 +21,7 @@ import java.security.KeyFactory
 import java.security.interfaces.RSAPrivateKey
 import java.security.spec.RSAPrivateKeySpec
 import java.util.*
+import java.util.concurrent.TimeUnit
 
 private val decoder = Base64.getMimeDecoder()
 
@@ -35,6 +37,10 @@ class GitHubProvider(
 ) : ScmProvider {
 
     private val jwtAlgorithm = loadPrivateKey(privateKey)
+
+    private val tokenCache = Caffeine.newBuilder()
+        .expireAfterWrite(50, TimeUnit.MINUTES) // GitHub tokens are valid for 1 hour
+        .build<String, String>()
 
     override val oAuthServerSettings: OAuthServerSettings = OAuthServerSettings.OAuth2ServerSettings(
         name = name,
@@ -79,20 +85,22 @@ class GitHubProvider(
 
             val user = userPromise.await()
 
-            UserSession(name, principal.accessToken, user.login, user.name, repoPermission, installationIds)
+            UserSession(name, principal.accessToken, user.name, repoPermission, installationIds)
         }
     }
 
-    override suspend fun getCommits(token: String, repository: String): List<ScmCommit> {
-        val ghCommits = httpClient.get<List<GitHubCommit>>("$baseApiPath/repos/$repository/commits") {
+    override suspend fun getCommits(repo: Repository): List<ScmCommit> {
+        val token = getAppToken(repo)
+        val ghCommits = httpClient.get<List<GitHubCommit>>("$baseApiPath/repos/${repo.name}/commits") {
             header("Authorization", "Bearer $token")
         }
 
         return ghCommits.map { ScmCommit(it.sha, it.commit.author.name, it.commit.message) }
     }
 
-    override suspend fun getFiles(token: String, repository: String, commitId: String): ScmTree {
-        val ghTree = httpClient.get<GitHubTree>("$baseApiPath/repos/$repository/git/trees/$commitId?recursive=1") {
+    override suspend fun getFiles(repo: Repository, commitId: String): ScmTree {
+        val token = getAppToken(repo)
+        val ghTree = httpClient.get<GitHubTree>("$baseApiPath/repos/${repo.name}/git/trees/$commitId?recursive=1") {
             header("Authorization", "Bearer $token")
         }
         if (ghTree.truncated) {
@@ -102,7 +110,28 @@ class GitHubProvider(
         return ScmTree(ghTree.sha, ghTree.tree.map { ScmFile(it.path, it.type.toScmFileType()) })
     }
 
-    override suspend fun getAppToken(repo: Repository): String {
+    override suspend fun getContent(repo: Repository, commitId: String, path: String): ByteArray {
+        val token = getAppToken(repo)
+        val content =
+            httpClient.get<GitHubContent>("$baseApiPath/repos/${repo.name}/contents/$path?ref=$commitId") {
+                header("Authorization", "Bearer $token")
+            }
+
+        return decoder.decode(content.content)
+    }
+
+    private suspend fun getAppToken(repo: Repository): String {
+        var cache = tokenCache.getIfPresent(repo.name)
+
+        if (cache == null) {
+            cache = getAppTokenInternal(repo)
+            tokenCache.put(repo.name, cache)
+        }
+
+        return cache
+    }
+
+    private suspend fun getAppTokenInternal(repo: Repository): String {
         val now = Date()
         val token = JWT.create()
             .withIssuer(appId)
@@ -116,17 +145,7 @@ class GitHubProvider(
                 header("Accept", "application/vnd.github.machine-man-preview+json")
             }
 
-        // TODO: Cache token until expiry
         return installationToken.token
-    }
-
-    override suspend fun getContent(token: String, repository: String, commitId: String, path: String): ByteArray {
-        val content =
-            httpClient.get<GitHubContent>("$baseApiPath/repos/$repository/contents/$path?ref=$commitId") {
-                header("Authorization", "Bearer $token")
-            }
-
-        return decoder.decode(content.content)
     }
 
 }

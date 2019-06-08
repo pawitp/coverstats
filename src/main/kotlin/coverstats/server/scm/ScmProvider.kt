@@ -13,9 +13,9 @@ interface ScmProvider {
     val oAuthServerSettings: OAuthServerSettings
 
     suspend fun processOAuth(principal: OAuthAccessTokenResponse.OAuth2): UserSession
-    suspend fun getCommits(token: String, repository: String): List<ScmCommit>
-    suspend fun getFiles(token: String, repository: String, commitId: String): ScmTree
-    suspend fun getAppToken(repo: Repository): String
-    suspend fun getContent(token: String, repository: String, commitId: String, path: String): ByteArray
+
+    suspend fun getCommits(repo: Repository): List<ScmCommit>
+    suspend fun getFiles(repo: Repository, commitId: String): ScmTree
+    suspend fun getContent(repo: Repository, commitId: String, path: String): ByteArray
 
 }

@@ -59,7 +59,7 @@ fun Route.upload(
             report == null -> call.respond(HttpStatusCode.BadRequest, "No report provided")
             else -> {
                 val scmProvider = scmProviders.getValue(repo.scm)
-                val tree = scmProvider.getFiles(scmProvider.getAppToken(repo), repo.name, commit!!)
+                val tree = scmProvider.getFiles(repo, commit!!)
                 val coverageFiles = coverageProcessors.readCoverage(report!!, tree.files)
                 val coverageReport = coverageFiles.toReport(repo, tree.commitId)
 

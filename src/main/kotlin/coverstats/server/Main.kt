@@ -1,9 +1,6 @@
 package coverstats.server
 
 import com.google.gson.FieldNamingPolicy
-import com.google.gson.JsonDeserializationContext
-import com.google.gson.JsonDeserializer
-import com.google.gson.JsonElement
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
 import coverstats.server.controllers.auth
@@ -15,12 +12,19 @@ import coverstats.server.coverage.processors.JacocoProcessor
 import coverstats.server.datastore.DataStore
 import coverstats.server.datastore.memory.MemoryDataStore
 import coverstats.server.exceptions.UnknownScmException
+import coverstats.server.models.datastore.Repository
 import coverstats.server.models.session.UserSession
 import coverstats.server.scm.GitHubProvider
 import coverstats.server.scm.ScmProvider
 import freemarker.cache.ClassTemplateLoader
-import io.ktor.application.*
-import io.ktor.auth.*
+import io.ktor.application.Application
+import io.ktor.application.ApplicationCall
+import io.ktor.application.call
+import io.ktor.application.install
+import io.ktor.auth.Authentication
+import io.ktor.auth.OAuthServerSettings
+import io.ktor.auth.authenticate
+import io.ktor.auth.oauth
 import io.ktor.client.HttpClient
 import io.ktor.client.features.json.GsonSerializer
 import io.ktor.client.features.json.JsonFeature
@@ -36,10 +40,6 @@ import io.ktor.routing.routing
 import io.ktor.sessions.*
 import io.ktor.util.AttributeKey
 import org.slf4j.event.Level
-import java.lang.reflect.Type
-import java.time.Instant
-import java.time.LocalDateTime
-import java.time.ZoneId
 
 fun main(args: Array<String>) {
     io.ktor.server.cio.EngineMain.main(args)
@@ -81,7 +81,7 @@ private val coverageProcessors: List<CoverageProcessor> = listOf(JacocoProcessor
 
 private val dataStore: DataStore = MemoryDataStore()
 
-val RepoNameAttribute = AttributeKey<String>("RepoName")
+val RepoAttribute = AttributeKey<Repository>("Repo")
 val ScmProviderAttribute = AttributeKey<ScmProvider>("ScmProvider")
 
 fun Application.module() {

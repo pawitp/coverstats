@@ -1,6 +1,6 @@
 package coverstats.server.controllers
 
-import coverstats.server.RepoNameAttribute
+import coverstats.server.RepoAttribute
 import coverstats.server.ScmProviderAttribute
 import coverstats.server.datastore.DataStore
 import coverstats.server.models.coverage.CoverageStatus
@@ -31,23 +31,7 @@ fun Route.repos(dataStore: DataStore, scmProviders: Map<String, ScmProvider>) {
         intercept(ApplicationCallPipeline.Call) {
             val session = call.sessions.get<UserSession>()!!
             val fullRepoName = call.parameters["org"]!! + "/" + call.parameters["name"]!!
-
-            call.attributes.put(RepoNameAttribute, fullRepoName)
-            call.attributes.put(ScmProviderAttribute, scmProviders[call.parameters["scm"]]!!)
-
-            // Permission check
-            // TODO: Allow public access to public repos
-            if (!session.repositories.contains(fullRepoName)) {
-                call.respond(HttpStatusCode.NotFound)
-                return@intercept finish()
-            }
-        }
-
-        get {
-            val session = call.sessions.get<UserSession>()!!
-            val fullRepoName = call.attributes[RepoNameAttribute]
-            val scmProvider = call.attributes[ScmProviderAttribute]
-            val permission = session.repositories.getValue(fullRepoName)
+            val scmProvider = scmProviders[call.parameters["scm"]]!!
             val installationId = session.installationIds.getValue(fullRepoName)
 
             var repo = dataStore.getRepositoryByName(scmProvider.name, fullRepoName)
@@ -61,7 +45,24 @@ fun Route.repos(dataStore: DataStore, scmProviders: Map<String, ScmProvider>) {
                 dataStore.saveRepository(repo)
             }
 
-            val commits = scmProvider.getCommits(session.token, fullRepoName)
+            call.attributes.put(RepoAttribute, repo)
+            call.attributes.put(ScmProviderAttribute, scmProvider)
+
+            // Permission check
+            // TODO: Allow public access to public repos
+            if (!session.repositories.contains(fullRepoName)) {
+                call.respond(HttpStatusCode.NotFound)
+                return@intercept finish()
+            }
+        }
+
+        get {
+            val session = call.sessions.get<UserSession>()!!
+            val repo = call.attributes[RepoAttribute]
+            val scmProvider = call.attributes[ScmProviderAttribute]
+            val permission = session.repositories.getValue(repo.name)
+
+            val commits = scmProvider.getCommits(repo)
             call.respond(
                 FreeMarkerContent(
                     "repo.ftl",
@@ -81,15 +82,14 @@ fun Route.repos(dataStore: DataStore, scmProviders: Map<String, ScmProvider>) {
         }
 
         get("/commits/{commitId}/files/{path...}") {
-            val session = call.sessions.get<UserSession>()!!
             val commitId = call.parameters["commitId"]!!
             val path = call.parameters.getAll("path")!!.joinToString("/")
-            val fullRepoName = call.attributes[RepoNameAttribute]
+            val repo = call.attributes[RepoAttribute]
             val scmProvider = call.attributes[ScmProviderAttribute]
 
             val content =
-                scmProvider.getContent(session.token, fullRepoName, commitId, path).toString(StandardCharsets.UTF_8)
-            val coverageReport = dataStore.getReportByCommitId(scmProvider.name, fullRepoName, commitId)
+                scmProvider.getContent(repo, commitId, path).toString(StandardCharsets.UTF_8)
+            val coverageReport = dataStore.getReportByCommitId(scmProvider.name, repo.name, commitId)
             val coverageFile = coverageReport?.files?.find { it.path == path }
 
             // TODO: Do this properly at statement level.
