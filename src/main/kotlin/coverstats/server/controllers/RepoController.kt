@@ -20,6 +20,7 @@ import io.ktor.routing.route
 import io.ktor.sessions.get
 import io.ktor.sessions.sessions
 import java.nio.charset.StandardCharsets
+import java.util.*
 
 fun Route.repos(dataStore: DataStore, scmProviders: Map<String, ScmProvider>) {
     get("/repos/{scm}") {
@@ -36,7 +37,7 @@ fun Route.repos(dataStore: DataStore, scmProviders: Map<String, ScmProvider>) {
 
             var repo = dataStore.getRepositoryByName(scmProvider.name, fullRepoName)
             if (repo == null) {
-                repo = Repository(scmProvider.name, fullRepoName, generateToken(), installationId)
+                repo = Repository(scmProvider.name, fullRepoName, generateToken(), installationId, Date())
                 dataStore.saveRepository(repo)
             }
             if (repo.installationId != installationId) {

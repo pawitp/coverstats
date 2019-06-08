@@ -1,5 +1,7 @@
 package coverstats.server.models.coverage
 
+import java.util.*
+
 data class CoverageReport(
     val scm: String,
     val repo: String,
@@ -11,7 +13,9 @@ data class CoverageReport(
     val missedStatements: Int,
     val coveredStatements: Int,
     val missedBranches: Int,
-    val coveredBranches: Int
+    val coveredBranches: Int,
+
+    val createdAt: Date
 )
 
 data class CoverageFile(

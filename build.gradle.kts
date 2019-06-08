@@ -20,6 +20,7 @@ val junitVersion = "5.4.2"
 
 dependencies {
     implementation(kotlin("stdlib-jdk8"))
+    implementation("org.jetbrains.kotlinx", "kotlinx-coroutines-guava", "1.2.1")
     implementation("io.ktor", "ktor-server-cio", ktorVersion)
     implementation("io.ktor", "ktor-server-servlet", ktorVersion)
     implementation("io.ktor", "ktor-server-sessions", ktorVersion)
@@ -34,6 +35,7 @@ dependencies {
     implementation("io.github.microutils", "kotlin-logging", "1.6.26")
     implementation("com.github.ben-manes.caffeine", "caffeine", "2.7.0")
     implementation("net.spy", "spymemcached", "2.12.3")
+    implementation("com.spotify", "async-datastore-client", "3.0.2")
     testCompile(kotlin("test-junit5"))
     testCompile("org.junit.jupiter", "junit-jupiter-api", junitVersion)
     testCompile("org.junit.jupiter", "junit-jupiter-engine", junitVersion)

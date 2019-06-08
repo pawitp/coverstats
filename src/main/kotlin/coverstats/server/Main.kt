@@ -10,8 +10,8 @@ import coverstats.server.controllers.repos
 import coverstats.server.controllers.upload
 import coverstats.server.coverage.processors.CoverageProcessor
 import coverstats.server.coverage.processors.JacocoProcessor
-import coverstats.server.datastore.CacheDataStore
 import coverstats.server.datastore.DataStore
+import coverstats.server.datastore.createDataStoreFromUri
 import coverstats.server.exceptions.UnknownScmException
 import coverstats.server.models.datastore.Repository
 import coverstats.server.models.session.UserSession
@@ -85,7 +85,7 @@ private val scmProviders: Map<String, ScmProvider> = config.getObject("scm").map
 
 private val coverageProcessors: List<CoverageProcessor> = listOf(JacocoProcessor)
 
-private val dataStore: DataStore = CacheDataStore(cache)
+private val dataStore: DataStore = createDataStoreFromUri(config.getString("modules.datastore"), cache)
 
 val RepoAttribute = AttributeKey<Repository>("Repo")
 val ScmProviderAttribute = AttributeKey<ScmProvider>("ScmProvider")

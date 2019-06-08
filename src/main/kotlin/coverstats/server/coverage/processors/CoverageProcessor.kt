@@ -5,6 +5,7 @@ import coverstats.server.models.coverage.CoverageReport
 import coverstats.server.models.coverage.CoverageStatus
 import coverstats.server.models.datastore.Repository
 import coverstats.server.models.scm.ScmFile
+import java.util.*
 
 interface CoverageProcessor {
     fun readCoverage(report: String, scmFiles: List<ScmFile>): List<CoverageFile>?
@@ -54,6 +55,7 @@ fun List<CoverageFile>.toReport(repo: Repository, commitId: String): CoverageRep
         missedStatements,
         coveredStatements,
         missedBranches,
-        coveredBranches
+        coveredBranches,
+        Date()
     )
 }
