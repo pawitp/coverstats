@@ -3,19 +3,21 @@ package coverstats.server
 import com.google.gson.FieldNamingPolicy
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
+import coverstats.server.cache.createCachefromUri
 import coverstats.server.controllers.auth
 import coverstats.server.controllers.home
 import coverstats.server.controllers.repos
 import coverstats.server.controllers.upload
 import coverstats.server.coverage.processors.CoverageProcessor
 import coverstats.server.coverage.processors.JacocoProcessor
+import coverstats.server.datastore.CacheDataStore
 import coverstats.server.datastore.DataStore
-import coverstats.server.datastore.memory.MemoryDataStore
 import coverstats.server.exceptions.UnknownScmException
 import coverstats.server.models.datastore.Repository
 import coverstats.server.models.session.UserSession
 import coverstats.server.scm.GitHubProvider
 import coverstats.server.scm.ScmProvider
+import coverstats.server.session.CacheSessionStorage
 import freemarker.cache.ClassTemplateLoader
 import io.ktor.application.Application
 import io.ktor.application.ApplicationCall
@@ -37,7 +39,10 @@ import io.ktor.request.port
 import io.ktor.request.queryString
 import io.ktor.response.respond
 import io.ktor.routing.routing
-import io.ktor.sessions.*
+import io.ktor.sessions.Sessions
+import io.ktor.sessions.cookie
+import io.ktor.sessions.get
+import io.ktor.sessions.sessions
 import io.ktor.util.AttributeKey
 import org.slf4j.event.Level
 
@@ -56,6 +61,7 @@ val httpClient = HttpClient {
 
 private val config: Config = ConfigFactory.load()
 private val httpsMode = config.getBoolean("security.httpsRedirect")
+private val cache = createCachefromUri(config.getString("modules.cache"))
 
 private val scmProviders: Map<String, ScmProvider> = config.getObject("scm").map { e ->
     val name = e.key
@@ -79,7 +85,7 @@ private val scmProviders: Map<String, ScmProvider> = config.getObject("scm").map
 
 private val coverageProcessors: List<CoverageProcessor> = listOf(JacocoProcessor)
 
-private val dataStore: DataStore = MemoryDataStore()
+private val dataStore: DataStore = CacheDataStore(cache)
 
 val RepoAttribute = AttributeKey<Repository>("Repo")
 val ScmProviderAttribute = AttributeKey<ScmProvider>("ScmProvider")
@@ -108,8 +114,7 @@ fun Application.module() {
         templateLoader = ClassTemplateLoader(javaClass.classLoader, "templates")
     }
     install(Sessions) {
-        // TODO: Switch to another session storage
-        cookie<UserSession>("SESSION", SessionStorageMemory()) {
+        cookie<UserSession>("SESSION", CacheSessionStorage(cache)) {
             cookie.path = "/"
             cookie.secure = httpsMode
         }

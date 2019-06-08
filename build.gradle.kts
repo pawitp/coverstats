@@ -33,6 +33,7 @@ dependencies {
     implementation("org.apache.commons", "commons-text", "1.6")
     implementation("io.github.microutils", "kotlin-logging", "1.6.26")
     implementation("com.github.ben-manes.caffeine", "caffeine", "2.7.0")
+    implementation("net.spy", "spymemcached", "2.12.3")
     testCompile(kotlin("test-junit5"))
     testCompile("org.junit.jupiter", "junit-jupiter-api", junitVersion)
     testCompile("org.junit.jupiter", "junit-jupiter-engine", junitVersion)
