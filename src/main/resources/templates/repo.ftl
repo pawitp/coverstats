@@ -15,6 +15,7 @@ Commits:
 </ul>
 <#if isAdmin>
     <p>Token for upload: <tt>${repo.uploadToken}</tt></p>
+    <p>Command for upload (Kotlin): <tt>curl -F token=${repo.uploadToken} -F commit=$(git rev-parse HEAD) -F report=@build/reports/jacoco/test/jacocoTestReport.xml ${uploadUrl}</tt></p>
 </#if>
 </body>
 </html>

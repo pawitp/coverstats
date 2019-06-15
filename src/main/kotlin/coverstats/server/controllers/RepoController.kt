@@ -11,6 +11,7 @@ import coverstats.server.scm.ScmProvider
 import coverstats.server.utils.generateToken
 import io.ktor.application.ApplicationCallPipeline
 import io.ktor.application.call
+import io.ktor.features.origin
 import io.ktor.freemarker.FreeMarkerContent
 import io.ktor.http.HttpStatusCode
 import io.ktor.response.respond
@@ -19,6 +20,7 @@ import io.ktor.routing.get
 import io.ktor.routing.route
 import io.ktor.sessions.get
 import io.ktor.sessions.sessions
+import java.net.URL
 import java.nio.charset.StandardCharsets
 import java.util.*
 
@@ -64,6 +66,13 @@ fun Route.repos(dataStore: DataStore, scmProviders: Map<String, ScmProvider>) {
             val permission = session.repositories.getValue(repo.name)
 
             val commits = scmProvider.getCommits(repo)
+
+            val uploadUrl = URL(
+                call.request.origin.scheme,
+                call.request.origin.host,
+                call.request.origin.port,
+                "/upload").toString()
+
             call.respond(
                 FreeMarkerContent(
                     "repo.ftl",
@@ -76,7 +85,8 @@ fun Route.repos(dataStore: DataStore, scmProviders: Map<String, ScmProvider>) {
                                 "message" to it.message.split("\n").first(),
                                 "report" to dataStore.getReportByCommitId(repo.scm, repo.name, it.commitId)
                             )
-                        }
+                        },
+                        "uploadUrl" to uploadUrl
                     )
                 )
             )
