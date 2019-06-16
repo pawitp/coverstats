@@ -69,7 +69,7 @@ private val logger = KotlinLogging.logger {}
 object JacocoProcessor : CoverageProcessor {
 
     override fun readCoverage(report: String, scmFiles: List<ScmFile>): List<CoverageFile>? {
-        if (!report.contains("-//JACOCO//DTD Report 1.0//EN")) {
+        if (!report.contains("-//JACOCO//DTD Report")) {
             // Not a JaCoCo report
             return null
         }
