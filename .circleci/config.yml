@@ -42,5 +42,5 @@ jobs:
       - run: ./gradlew test jacocoTestReport
 
       # upload reports
-      - run: curl -v -F token=$COVERSTATS_TOKEN -F commit=$CIRCLE_SHA1 -F report=@build/reports/jacoco/test/jacocoTestReport.xml https://coverstats.appspot.com/upload
+      - run: curl -f -F token=$COVERSTATS_TOKEN -F commit=$CIRCLE_SHA1 -F report=@build/reports/jacoco/test/jacocoTestReport.xml https://coverstats.appspot.com/upload
 
