@@ -1,6 +1,6 @@
 package coverstats.server.datastore
 
-import com.google.api.client.googleapis.auth.oauth2.GoogleCredential
+import com.google.api.client.googleapis.extensions.appengine.auth.oauth2.AppIdentityCredential
 import com.google.protobuf.ByteString
 import com.spotify.asyncdatastoreclient.*
 import com.spotify.asyncdatastoreclient.QueryBuilder.eq
@@ -79,7 +79,12 @@ class GoogleCloudDataStore : DataStore {
                 .build()
         } else {
             DatastoreConfig.builder()
-                .credential(GoogleCredential.getApplicationDefault())
+                .credential(
+                    AppIdentityCredential.AppEngineCredentialWrapper
+                        .getApplicationDefault()
+                        .createScoped(DatastoreConfig.SCOPES)
+                )
+                .project(System.getenv("GCLOUD_PROJECT"))
                 .build()
         }
     }

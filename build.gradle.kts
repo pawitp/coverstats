@@ -36,9 +36,15 @@ dependencies {
     implementation("com.github.ben-manes.caffeine", "caffeine", "2.7.0")
     implementation("net.spy", "spymemcached", "2.12.3")
     implementation("com.spotify", "async-datastore-client", "3.0.2")
+    implementation("com.google.api-client", "google-api-client-appengine", "1.29.2")
     testCompile(kotlin("test-junit5"))
     testCompile("org.junit.jupiter", "junit-jupiter-api", junitVersion)
     testCompile("org.junit.jupiter", "junit-jupiter-engine", junitVersion)
+}
+
+configurations.all {
+    // Required for async-datastore-client
+    resolutionStrategy.force("com.google.guava:guava:23.0")
 }
 
 application {
