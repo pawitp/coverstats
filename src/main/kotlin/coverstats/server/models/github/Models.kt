@@ -2,7 +2,7 @@ package coverstats.server.models.github
 
 import java.util.*
 
-data class GitHubUser(val login: String, val name: String)
+data class GitHubUser(val login: String, val name: String?)
 
 data class GitHubInstallations(val totalCount: Int, val installations: List<GitHubInstallation>)
 
