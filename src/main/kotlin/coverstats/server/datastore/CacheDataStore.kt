@@ -13,12 +13,12 @@ import java.nio.charset.StandardCharsets.UTF_8
 class CacheDataStore(val cache: Cache) : DataStore {
 
     override suspend fun getRepositoryByName(scm: String, name: String): Repository? {
-        return cache.get("repo:$scm/$name")?.toString(UTF_8)?.deserializeJson(Repository::class)
+        return cache.get("repo:$scm/$name")?.toString(UTF_8)?.deserializeJson()
     }
 
     override suspend fun getRepositoryByToken(token: String): Repository? {
         val repoName = cache.get("token:$token")?.toString(UTF_8)
-        return repoName?.let { cache.get("repo:$it")?.toString(UTF_8)?.deserializeJson(Repository::class) }
+        return repoName?.let { cache.get("repo:$it")?.toString(UTF_8)?.deserializeJson() }
     }
 
     override suspend fun saveRepository(repo: Repository) {
@@ -26,9 +26,8 @@ class CacheDataStore(val cache: Cache) : DataStore {
         cache.put("token:${repo.uploadToken}", "${repo.scm}/${repo.name}".toByteArray(UTF_8))
     }
 
-
     override suspend fun getReportByCommitId(scm: String, repo: String, commitId: String): CoverageReport? {
-        return cache.get("report:$scm/$repo/$commitId")?.toString(UTF_8)?.deserializeJson(CoverageReport::class)
+        return cache.get("report:$scm/$repo/$commitId")?.toString(UTF_8)?.deserializeJson()
     }
 
     override suspend fun saveReport(report: CoverageReport) {

@@ -1,6 +1,7 @@
 package coverstats.server.coverage
 
 import coverstats.server.cache.Cache
+import coverstats.server.cache.tryGetFromCache
 import coverstats.server.datastore.DataStore
 import coverstats.server.models.coverage.CoverageReport
 import coverstats.server.models.coverage.CoverageStatus
@@ -10,8 +11,9 @@ import coverstats.server.models.scm.ScmFileType
 
 class CoverageService(private val dataStore: DataStore, private val cache: Cache) {
     suspend fun getProcessedReport(scm: String, repo: String, commitId: String): ProcessedCoverageReport? {
-        // TODO: Cache
-        return dataStore.getReportByCommitId(scm, repo, commitId)?.processReport()
+        return cache.tryGetFromCache("r:$scm/$repo/$commitId") {
+            dataStore.getReportByCommitId(scm, repo, commitId)?.processReport()
+        }
     }
 }
 

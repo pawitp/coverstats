@@ -3,7 +3,7 @@ package coverstats.server
 import com.google.gson.FieldNamingPolicy
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
-import coverstats.server.cache.createCachefromUri
+import coverstats.server.cache.createCacheFromUri
 import coverstats.server.controllers.auth
 import coverstats.server.controllers.home
 import coverstats.server.controllers.repos
@@ -62,7 +62,7 @@ val httpClient = HttpClient {
 
 private val config: Config = ConfigFactory.load()
 private val httpsMode = config.getBoolean("security.httpsRedirect")
-private val cache = createCachefromUri(config.getString("modules.cache"))
+private val cache = createCacheFromUri(config.getString("modules.cache"))
 
 private val scmProviders: Map<String, ScmProvider> = config.getObject("scm").map { e ->
     val name = e.key
