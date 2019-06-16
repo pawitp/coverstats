@@ -6,6 +6,7 @@ import coverstats.server.coverage.CoverageService
 import coverstats.server.datastore.DataStore
 import coverstats.server.models.coverage.CoverageStatus
 import coverstats.server.models.datastore.Repository
+import coverstats.server.models.scm.ScmFileType
 import coverstats.server.models.scm.ScmPermission
 import coverstats.server.models.session.UserSession
 import coverstats.server.scm.ScmProvider
@@ -72,7 +73,8 @@ fun Route.repos(dataStore: DataStore, coverageService: CoverageService, scmProvi
                 call.request.origin.scheme,
                 call.request.origin.host,
                 call.request.origin.port,
-                "/upload").toString()
+                "/upload"
+            ).toString()
 
             call.respond(
                 FreeMarkerContent(
@@ -84,7 +86,11 @@ fun Route.repos(dataStore: DataStore, coverageService: CoverageService, scmProvi
                             mapOf(
                                 "commitId" to it.commitId,
                                 "message" to it.message.split("\n").first(),
-                                "report" to coverageService.getProcessedReport(repo.scm, repo.name, it.commitId)?.files?.get("")
+                                "report" to coverageService.getProcessedReport(
+                                    repo.scm,
+                                    repo.name,
+                                    it.commitId
+                                )?.files?.get("")
                             )
                         },
                         "uploadUrl" to uploadUrl
@@ -99,33 +105,51 @@ fun Route.repos(dataStore: DataStore, coverageService: CoverageService, scmProvi
             val repo = call.attributes[RepoAttribute]
             val scmProvider = call.attributes[ScmProviderAttribute]
 
-            val content =
-                scmProvider.getContent(repo, commitId, path).toString(StandardCharsets.UTF_8)
             val coverageReport = coverageService.getProcessedReport(scmProvider.name, repo.name, commitId)
             val coverageFile = coverageReport?.files?.get(path)
-            // TODO: Do this properly at statement level.
-            val lineMap = coverageFile?.statements?.map { it.lineNumber to it.status }?.toMap() ?: mapOf()
+            val baseUrl = "/repos/${repo.scm}/${repo.name}/commits/$commitId/files/"
 
-            val lines = content.split('\n').mapIndexed { index, line ->
-                mapOf(
-                    "content" to line,
-                    "color" to when (lineMap[index + 1]) {
-                        CoverageStatus.FULL -> "green"
-                        CoverageStatus.PARTIAL -> "yellow"
-                        CoverageStatus.NONE -> "red"
-                        else -> "black"
-                    }
-                )
-            }
-
-            call.respond(
-                FreeMarkerContent(
-                    "file.ftl",
-                    mapOf(
-                        "lines" to lines
+            when {
+                coverageFile == null -> call.respond(HttpStatusCode.NotFound)
+                coverageFile.type == ScmFileType.DIRECTORY -> {
+                    call.respond(
+                        FreeMarkerContent(
+                            "directory.ftl",
+                            mapOf(
+                                "baseUrl" to baseUrl,
+                                "report" to coverageFile,
+                                "children" to coverageFile.childrenPaths.map { coverageReport.files.getValue(it) }
+                            )
+                        )
                     )
-                )
-            )
+                }
+                coverageFile.type == ScmFileType.FILE -> {
+                    // TODO: Do this properly at statement level.
+                    val content = scmProvider.getContent(repo, commitId, path).toString(StandardCharsets.UTF_8)
+                    val lineMap = coverageFile.statements.map { it.lineNumber to it.status }.toMap()
+
+                    val lines = content.split('\n').mapIndexed { index, line ->
+                        mapOf(
+                            "content" to line,
+                            "color" to when (lineMap[index + 1]) {
+                                CoverageStatus.FULL -> "green"
+                                CoverageStatus.PARTIAL -> "yellow"
+                                CoverageStatus.NONE -> "red"
+                                else -> "black"
+                            }
+                        )
+                    }
+
+                    call.respond(
+                        FreeMarkerContent(
+                            "file.ftl",
+                            mapOf(
+                                "lines" to lines
+                            )
+                        )
+                    )
+                }
+            }
         }
     }
 }

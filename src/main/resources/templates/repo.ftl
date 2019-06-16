@@ -4,9 +4,9 @@ Commits:
 <ul>
     <#list commits as c>
         <li>
-            <a href="/repos/github/${repo.name}/commits/${c.commitId}">${c.commitId} ${c.message}</a>
+            ${c.commitId} ${c.message}
             <#if c.report??>
-                ${c.report.coveredStatements} / ${c.report.missedStatements}
+                <a href="/repos/${repo.scm}/${repo.name}/commits/${c.commitId}/files/">${c.report.coveredStatements} / ${c.report.missedStatements}</a>
             <#else>
                 No Report
             </#if>
