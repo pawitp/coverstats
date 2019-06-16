@@ -2,6 +2,7 @@ package coverstats.server.controllers
 
 import coverstats.server.RepoAttribute
 import coverstats.server.ScmProviderAttribute
+import coverstats.server.coverage.CoverageService
 import coverstats.server.datastore.DataStore
 import coverstats.server.models.coverage.CoverageStatus
 import coverstats.server.models.datastore.Repository
@@ -24,7 +25,7 @@ import java.net.URL
 import java.nio.charset.StandardCharsets
 import java.util.*
 
-fun Route.repos(dataStore: DataStore, scmProviders: Map<String, ScmProvider>) {
+fun Route.repos(dataStore: DataStore, coverageService: CoverageService, scmProviders: Map<String, ScmProvider>) {
     get("/repos/{scm}") {
         val session = call.sessions.get<UserSession>()!!
         call.respond(FreeMarkerContent("repos.ftl", mapOf("session" to session)))
@@ -83,7 +84,7 @@ fun Route.repos(dataStore: DataStore, scmProviders: Map<String, ScmProvider>) {
                             mapOf(
                                 "commitId" to it.commitId,
                                 "message" to it.message.split("\n").first(),
-                                "report" to dataStore.getReportByCommitId(repo.scm, repo.name, it.commitId)
+                                "report" to coverageService.getProcessedReport(repo.scm, repo.name, it.commitId)?.files?.get("")
                             )
                         },
                         "uploadUrl" to uploadUrl
@@ -100,9 +101,8 @@ fun Route.repos(dataStore: DataStore, scmProviders: Map<String, ScmProvider>) {
 
             val content =
                 scmProvider.getContent(repo, commitId, path).toString(StandardCharsets.UTF_8)
-            val coverageReport = dataStore.getReportByCommitId(scmProvider.name, repo.name, commitId)
-            val coverageFile = coverageReport?.files?.find { it.path == path }
-
+            val coverageReport = coverageService.getProcessedReport(scmProvider.name, repo.name, commitId)
+            val coverageFile = coverageReport?.files?.get(path)
             // TODO: Do this properly at statement level.
             val lineMap = coverageFile?.statements?.map { it.lineNumber to it.status }?.toMap() ?: mapOf()
 

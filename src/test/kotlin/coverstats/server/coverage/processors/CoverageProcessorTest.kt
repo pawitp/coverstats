@@ -31,10 +31,7 @@ class CoverageProcessorTest {
         assertEquals("scm", report.scm)
         assertEquals("org/name", report.repo)
         assertEquals("commitId", report.commitId)
-        assertEquals(1, report.missedStatements)
-        assertEquals(3, report.coveredStatements)
-        assertEquals(2, report.missedBranches)
-        assertEquals(1, report.coveredBranches)
+        assertEquals(coverageFiles, report.files)
     }
 
     @Test

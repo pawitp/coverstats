@@ -28,34 +28,11 @@ fun List<CoverageFile>.toReport(repo: Repository, commitId: String): CoverageRep
         throw RuntimeException("Duplicate files found in report")
     }
 
-    var missedStatements = 0
-    var coveredStatements = 0
-    var missedBranches = 0
-    var coveredBranches = 0
-
-    for (file in this) {
-        for (stmt in file.statements) {
-            coveredBranches += stmt.coveredBranches
-            missedBranches += stmt.missedBranches
-
-            if (stmt.status != CoverageStatus.NONE) {
-                coveredStatements++
-            } else {
-                missedStatements++
-            }
-
-        }
-    }
-
     return CoverageReport(
         repo.scm,
         repo.name,
         commitId,
         this,
-        missedStatements,
-        coveredStatements,
-        missedBranches,
-        coveredBranches,
         Date()
     )
 }

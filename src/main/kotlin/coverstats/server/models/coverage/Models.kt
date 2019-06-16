@@ -1,20 +1,31 @@
 package coverstats.server.models.coverage
 
+import coverstats.server.models.scm.ScmFileType
 import java.util.*
 
+// Report for fast access (stored in cache)
+data class ProcessedCoverageReport(
+    val files: Map<String, ProcessedCoverageFile>
+)
+
+data class ProcessedCoverageFile (
+    val path: String,
+    val type: ScmFileType,
+    val parentPath: String,
+    val childrenPaths: Set<String>,
+    val statements: List<CoverageStatement>,
+    val missedStatements: Int,
+    val coveredStatements: Int,
+    val missedBranches: Int,
+    val coveredBranches: Int
+)
+
+// Raw report stored in database
 data class CoverageReport(
     val scm: String,
     val repo: String,
     val commitId: String,
-
     val files: List<CoverageFile>,
-
-    // Summary for easy access in summary reports
-    val missedStatements: Int,
-    val coveredStatements: Int,
-    val missedBranches: Int,
-    val coveredBranches: Int,
-
     val createdAt: Date
 )
 

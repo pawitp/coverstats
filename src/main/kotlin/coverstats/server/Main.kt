@@ -8,6 +8,7 @@ import coverstats.server.controllers.auth
 import coverstats.server.controllers.home
 import coverstats.server.controllers.repos
 import coverstats.server.controllers.upload
+import coverstats.server.coverage.CoverageService
 import coverstats.server.coverage.processors.CoverageProcessor
 import coverstats.server.coverage.processors.JacocoProcessor
 import coverstats.server.datastore.DataStore
@@ -86,6 +87,7 @@ private val scmProviders: Map<String, ScmProvider> = config.getObject("scm").map
 private val coverageProcessors: List<CoverageProcessor> = listOf(JacocoProcessor)
 
 private val dataStore: DataStore = createDataStoreFromUri(config.getString("modules.datastore"), cache)
+private val coverageService: CoverageService = CoverageService(dataStore, cache)
 
 val RepoAttribute = AttributeKey<Repository>("Repo")
 val ScmProviderAttribute = AttributeKey<ScmProvider>("ScmProvider")
@@ -136,7 +138,7 @@ fun Application.module() {
         upload(dataStore, scmProviders, coverageProcessors)
 
         authenticate {
-            repos(dataStore, scmProviders)
+            repos(dataStore, coverageService, scmProviders)
             auth(scmProviders)
         }
     }
