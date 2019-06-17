@@ -12,7 +12,8 @@ data class GitHubRepositories(val totalCount: Int, val repositories: List<GitHub
 
 data class GitHubRepository(
     val fullName: String,
-    val permissions: GitHubPermission
+    val permissions: GitHubPermission,
+    val private: Boolean
 )
 
 data class GitHubCommit(

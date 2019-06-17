@@ -120,6 +120,15 @@ class GitHubProvider(
         return decoder.decode(content.content)
     }
 
+    override suspend fun isPublic(repo: Repository): Boolean {
+        val token = getAppToken(repo)
+        val ghRepo =
+            httpClient.get<GitHubRepository>("$baseApiPath/repos/${repo.name}") {
+                header("Authorization", "Bearer $token")
+            }
+        return !ghRepo.private
+    }
+
     private suspend fun getAppToken(repo: Repository): String {
         var cache = tokenCache.getIfPresent(repo.name)
 

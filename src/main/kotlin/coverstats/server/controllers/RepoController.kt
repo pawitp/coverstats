@@ -37,35 +37,43 @@ fun Route.repos(dataStore: DataStore, coverageService: CoverageService, scmProvi
             val session = call.sessions.get<UserSession>()!!
             val fullRepoName = call.parameters["org"]!! + "/" + call.parameters["name"]!!
             val scmProvider = scmProviders[call.parameters["scm"]]!!
-            val installationId = session.installationIds.getValue(fullRepoName)
-
+            val installationId = session.installationIds[fullRepoName]
             var repo = dataStore.getRepositoryByName(scmProvider.name, fullRepoName)
-            if (repo == null) {
-                repo = Repository(scmProvider.name, fullRepoName, generateToken(), installationId, Date())
-                dataStore.saveRepository(repo)
+
+            // Create/update if required
+            // installationId can be null in case of public repos visited by non-members
+            if (installationId != null) {
+                if (repo == null) {
+                    repo = Repository(scmProvider.name, fullRepoName, generateToken(), installationId, Date())
+                    dataStore.saveRepository(repo)
+                }
+                if (repo.installationId != installationId) {
+                    // Installation ID has changed, update it
+                    repo = repo.copy(installationId = installationId)
+                    dataStore.saveRepository(repo)
+                }
+            } else if (repo == null) {
+                // We don't know about this repo
+                call.respond(HttpStatusCode.NotFound)
+                return@intercept finish()
             }
-            if (repo.installationId != installationId) {
-                // Installation ID has changed, update it
-                repo = repo.copy(installationId = installationId)
-                dataStore.saveRepository(repo)
+
+            // Permission check
+            // TODO: isPublic should be cached
+            if (!session.repositories.contains(fullRepoName) && !scmProvider.isPublic(repo)) {
+                call.respond(HttpStatusCode.NotFound)
+                return@intercept finish()
             }
 
             call.attributes.put(RepoAttribute, repo)
             call.attributes.put(ScmProviderAttribute, scmProvider)
-
-            // Permission check
-            // TODO: Allow public access to public repos
-            if (!session.repositories.contains(fullRepoName)) {
-                call.respond(HttpStatusCode.NotFound)
-                return@intercept finish()
-            }
         }
 
         get {
             val session = call.sessions.get<UserSession>()!!
             val repo = call.attributes[RepoAttribute]
             val scmProvider = call.attributes[ScmProviderAttribute]
-            val permission = session.repositories.getValue(repo.name)
+            val permission = session.repositories[repo.name] ?: ScmPermission.READ
 
             val commits = scmProvider.getCommits(repo)
 
