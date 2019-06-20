@@ -16,6 +16,7 @@ import coverstats.server.datastore.createDataStoreFromUri
 import coverstats.server.exceptions.UnknownScmException
 import coverstats.server.models.datastore.Repository
 import coverstats.server.models.session.UserSession
+import coverstats.server.scm.CachingScmProvider
 import coverstats.server.scm.GitHubProvider
 import coverstats.server.scm.ScmProvider
 import coverstats.server.session.CacheSessionStorage
@@ -64,6 +65,8 @@ private val config: Config = ConfigFactory.load()
 private val httpsMode = config.getBoolean("security.httpsRedirect")
 private val cache = createCacheFromUri(config.getString("modules.cache"))
 
+private fun ScmProvider.withCache(): ScmProvider = CachingScmProvider(this, cache)
+
 private val scmProviders: Map<String, ScmProvider> = config.getObject("scm").map { e ->
     val name = e.key
     val subConfig = config.getConfig("scm.$name")
@@ -78,7 +81,7 @@ private val scmProviders: Map<String, ScmProvider> = config.getObject("scm").map
             subConfig.getString("appId"),
             subConfig.getString("privateKey"),
             httpClient
-        )
+        ).withCache()
     } else {
         throw RuntimeException("Unknown SCM: $type")
     }

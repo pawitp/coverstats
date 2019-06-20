@@ -59,7 +59,6 @@ fun Route.repos(dataStore: DataStore, coverageService: CoverageService, scmProvi
             }
 
             // Permission check
-            // TODO: isPublic should be cached
             if (!session.repositories.contains(fullRepoName) && !scmProvider.isPublic(repo)) {
                 call.respond(HttpStatusCode.NotFound)
                 return@intercept finish()

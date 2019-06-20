@@ -25,13 +25,24 @@ fun createCacheFromUri(uri: String): Cache {
 
 // Try to get from cache, otherwise fetch from original source.
 // If value is null, then it will not be cached.
-suspend inline fun <reified T : Any> Cache.tryGetFromCache(name: String, fetch: () -> T?): T? {
+suspend inline fun <reified T : Any> Cache.cachedNullable(name: String, expirationMs: Int? = null, fetch: () -> T?): T? {
     val cachedValue = this.get(name)
     return if (cachedValue != null) {
         cachedValue.toString(UTF_8).deserializeJson()
     } else {
         val value = fetch()
-        if (value != null) this.put(name, value.serializeJson().toByteArray(UTF_8))
+        if (value != null) this.put(name, value.serializeJson().toByteArray(UTF_8), expirationMs)
+        value
+    }
+}
+
+suspend inline fun <reified T : Any> Cache.cached(name: String, expirationMs: Int? = null, fetch: () -> T): T {
+    val cachedValue = this.get(name)
+    return if (cachedValue != null) {
+        cachedValue.toString(UTF_8).deserializeJson()
+    } else {
+        val value = fetch()
+        this.put(name, value.serializeJson().toByteArray(UTF_8), expirationMs)
         value
     }
 }
