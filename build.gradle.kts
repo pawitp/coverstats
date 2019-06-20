@@ -5,7 +5,7 @@ plugins {
     application
     war
     jacoco
-    kotlin("jvm") version "1.3.31"
+    kotlin("jvm") version "1.3.40"
 }
 
 group = "coverstats"
