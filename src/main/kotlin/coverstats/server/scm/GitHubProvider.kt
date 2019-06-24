@@ -13,6 +13,8 @@ import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
+import io.ktor.http.ContentType
+import io.ktor.http.contentType
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import org.bouncycastle.util.io.pem.PemReader
@@ -127,6 +129,23 @@ class GitHubProvider(
                 header("Authorization", "Bearer $token")
             }
         return !ghRepo.private
+    }
+
+    override suspend fun addStatus(
+        repo: Repository,
+        commitId: String,
+        passed: Boolean,
+        url: String,
+        description: String,
+        context: String
+    ) {
+        val token = getAppToken(repo)
+        httpClient.post<Unit>("$baseApiPath/repos/${repo.name}/statuses/${commitId}") {
+            header("Authorization", "Bearer $token")
+            contentType(ContentType.Application.Json)
+            val state = if (passed) "success" else "failure"
+            body = GitHubStatus(state, url, description, context)
+        }
     }
 
     private suspend fun getAppToken(repo: Repository): String {

@@ -38,4 +38,14 @@ class CachingScmProvider(private val underlying: ScmProvider, private val cache:
         }
     }
 
+    override suspend fun addStatus(
+        repo: Repository,
+        commitId: String,
+        passed: Boolean,
+        url: String,
+        description: String,
+        context: String
+    ) {
+        underlying.addStatus(repo, commitId, passed, url, description, context)
+    }
 }

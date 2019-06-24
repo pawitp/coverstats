@@ -55,3 +55,10 @@ data class GitHubToken(
 data class GitHubContent(
     val content: String
 )
+
+data class GitHubStatus(
+    val state: String,
+    val targetUrl: String,
+    val description: String,
+    val context: String
+)

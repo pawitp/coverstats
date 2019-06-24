@@ -18,5 +18,13 @@ interface ScmProvider {
     suspend fun getFiles(repo: Repository, commitId: String): ScmTree
     suspend fun getContent(repo: Repository, commitId: String, path: String): ByteArray
     suspend fun isPublic(repo: Repository): Boolean
+    suspend fun addStatus(
+        repo: Repository,
+        commitId: String,
+        passed: Boolean,
+        url: String,
+        description: String,
+        context: String
+    )
 
 }

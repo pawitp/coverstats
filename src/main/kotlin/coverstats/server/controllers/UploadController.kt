@@ -1,12 +1,15 @@
 package coverstats.server.controllers
 
+import coverstats.server.coverage.processReport
 import coverstats.server.coverage.processors.CoverageProcessor
 import coverstats.server.coverage.processors.readCoverage
 import coverstats.server.coverage.processors.toReport
 import coverstats.server.datastore.DataStore
 import coverstats.server.scm.ScmProvider
 import coverstats.server.utils.copyToSuspend
+import coverstats.server.utils.generateUrl
 import io.ktor.application.call
+import io.ktor.features.origin
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.PartData
 import io.ktor.http.content.forEachPart
@@ -65,9 +68,46 @@ fun Route.upload(
 
                 dataStore.saveReport(coverageReport)
 
-                // TODO: Send status check
+                // TODO: Calculate and send patch coverage
+                // TODO: Customizable pass/fail percentage
+
+                // Send status checks
+                val processedReport = coverageReport.processReport()
+                val rootFile = processedReport.files.getValue("")
+                val percentStatements =
+                    rootFile.coveredStatements / (rootFile.coveredStatements + rootFile.missedStatements).toDouble() * 100
+                val percentBranches =
+                    rootFile.coveredBranches / (rootFile.coveredBranches + rootFile.missedBranches).toDouble() * 100
+
+                val url = generateUrl(
+                    call.request.origin.scheme,
+                    call.request.origin.host,
+                    call.request.origin.port,
+                    "/repos/${scmProvider.name}/${repo.name}/commits/${tree.commitId}"
+                )
+
+                scmProvider.addStatus(
+                    repo,
+                    tree.commitId,
+                    true,
+                    url,
+                    "${percentStatements.formatString()}% Statement Coverage",
+                    "coverstats/statement"
+                )
+
+                scmProvider.addStatus(
+                    repo,
+                    tree.commitId,
+                    true,
+                    url,
+                    "${percentBranches.formatString()}% Branch Coverage",
+                    "coverstats/branch"
+                )
+
                 call.respondText("OK")
             }
         }
     }
 }
+
+private fun Double.formatString(): String = "%.2f".format(this)
