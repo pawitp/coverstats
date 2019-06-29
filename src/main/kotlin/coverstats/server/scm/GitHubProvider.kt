@@ -100,6 +100,15 @@ class GitHubProvider(
         return ghCommits.map { ScmCommit(it.sha, it.commit.author.name, it.commit.message) }
     }
 
+    override suspend fun getCommitChanges(repo: Repository, commitId: String): Map<String, String> {
+        val token = getAppToken(repo)
+        val ghCommit = httpClient.get<GitHubCommitChanges>("$baseApiPath/repos/${repo.name}/commits/$commitId") {
+            header("Authorization", "Bearer $token")
+        }
+
+        return ghCommit.files.map { it.filename to it.patch }.toMap()
+    }
+
     override suspend fun getFiles(repo: Repository, commitId: String): ScmTree {
         val token = getAppToken(repo)
         val ghTree = httpClient.get<GitHubTree>("$baseApiPath/repos/${repo.name}/git/trees/$commitId?recursive=1") {

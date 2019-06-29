@@ -22,6 +22,10 @@ class CachingScmProvider(private val underlying: ScmProvider, private val cache:
         return underlying.getCommits(repo)
     }
 
+    override suspend fun getCommitChanges(repo: Repository, commitId: String): Map<String, String> {
+        return underlying.getCommitChanges(repo, commitId)
+    }
+
     override suspend fun getFiles(repo: Repository, commitId: String): ScmTree {
         return cache.cached("s:$name:files:$commitId", 60 * 60 * 1000) {
             underlying.getFiles(repo, commitId)

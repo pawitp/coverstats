@@ -8,7 +8,7 @@ data class ProcessedCoverageReport(
     val files: Map<String, ProcessedCoverageFile>
 )
 
-data class ProcessedCoverageFile (
+data class ProcessedCoverageFile(
     val path: String,
     val type: ScmFileType,
     val parentPath: String,
@@ -32,6 +32,12 @@ data class CoverageReport(
 data class CoverageFile(
     val path: String,
     val statements: List<CoverageStatement>
+)
+
+// Patch coverage summary
+data class PatchCoverageReport(
+    val missedStatements: Int,
+    val coveredStatements: Int
 )
 
 // Smallest unit of coverage. If start == end == -1, then the statement is the full line.

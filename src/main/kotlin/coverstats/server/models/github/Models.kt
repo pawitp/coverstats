@@ -52,6 +52,15 @@ data class GitHubToken(
     val expiresAt: Date
 )
 
+data class GitHubCommitChanges(
+    val files: List<GitHubFileChanges>
+)
+
+data class GitHubFileChanges(
+    val filename: String,
+    val patch: String
+)
+
 data class GitHubContent(
     val content: String
 )

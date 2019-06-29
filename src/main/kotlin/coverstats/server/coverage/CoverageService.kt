@@ -3,11 +3,9 @@ package coverstats.server.coverage
 import coverstats.server.cache.Cache
 import coverstats.server.cache.cachedNullable
 import coverstats.server.datastore.DataStore
-import coverstats.server.models.coverage.CoverageReport
-import coverstats.server.models.coverage.CoverageStatus
-import coverstats.server.models.coverage.ProcessedCoverageFile
-import coverstats.server.models.coverage.ProcessedCoverageReport
+import coverstats.server.models.coverage.*
 import coverstats.server.models.scm.ScmFileType
+import coverstats.server.utils.linesChangedInPatch
 
 class CoverageService(private val dataStore: DataStore, private val cache: Cache) {
     suspend fun getProcessedReport(scm: String, repo: String, commitId: String): ProcessedCoverageReport? {
@@ -71,6 +69,20 @@ fun CoverageReport.processReport(): ProcessedCoverageReport {
     processedFiles.flatten("")
 
     return ProcessedCoverageReport(processedFiles)
+}
+
+fun CoverageReport.patchCoverage(patches: Map<String, String>): PatchCoverageReport {
+    var missedStatements = 0
+    var coveredStatements = 0
+
+    for (file in files) {
+        val changedLines = patches[file.path]?.let { linesChangedInPatch(it) }.orEmpty()
+        val changedStatements = file.statements.filter { changedLines.contains(it.lineNumber) }
+        missedStatements += changedStatements.count { it.status == CoverageStatus.NONE }
+        coveredStatements += changedStatements.count { it.status != CoverageStatus.NONE }
+    }
+
+    return PatchCoverageReport(missedStatements, coveredStatements)
 }
 
 private fun MutableMap<String, ProcessedCoverageFile>.flatten(path: String) {

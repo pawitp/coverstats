@@ -15,6 +15,7 @@ interface ScmProvider {
     suspend fun processOAuth(principal: OAuthAccessTokenResponse.OAuth2): UserSession
 
     suspend fun getCommits(repo: Repository): List<ScmCommit>
+    suspend fun getCommitChanges(repo: Repository, commitId: String): Map<String, String>
     suspend fun getFiles(repo: Repository, commitId: String): ScmTree
     suspend fun getContent(repo: Repository, commitId: String, path: String): ByteArray
     suspend fun isPublic(repo: Repository): Boolean

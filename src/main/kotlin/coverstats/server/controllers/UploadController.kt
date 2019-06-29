@@ -1,5 +1,6 @@
 package coverstats.server.controllers
 
+import coverstats.server.coverage.patchCoverage
 import coverstats.server.coverage.processReport
 import coverstats.server.coverage.processors.CoverageProcessor
 import coverstats.server.coverage.processors.readCoverage
@@ -63,12 +64,12 @@ fun Route.upload(
             else -> {
                 val scmProvider = scmProviders.getValue(repo.scm)
                 val tree = scmProvider.getFiles(repo, commit!!)
+                val patches = scmProvider.getCommitChanges(repo, tree.commitId)
                 val coverageFiles = coverageProcessors.readCoverage(report!!, tree.files)
                 val coverageReport = coverageFiles.toReport(repo, tree.commitId)
 
                 dataStore.saveReport(coverageReport)
 
-                // TODO: Calculate and send patch coverage
                 // TODO: Customizable pass/fail percentage
 
                 // Send status checks
@@ -103,6 +104,28 @@ fun Route.upload(
                     "${percentBranches.formatString()}% Branch Coverage",
                     "coverstats/branch"
                 )
+
+                val patchReport = coverageReport.patchCoverage(patches)
+                if (patchReport.coveredStatements + patchReport.missedStatements > 0) {
+                    val percentPatch = patchReport.coveredStatements / (patchReport.coveredStatements + patchReport.missedStatements).toDouble() * 100
+                    scmProvider.addStatus(
+                        repo,
+                        tree.commitId,
+                        true,
+                        url,
+                        "${percentPatch.formatString()}% Patch Statement Coverage",
+                        "coverstats/patch"
+                    )
+                } else {
+                    scmProvider.addStatus(
+                        repo,
+                        tree.commitId,
+                        true,
+                        url,
+                        "No covered file changed in patch",
+                        "coverstats/patch"
+                    )
+                }
 
                 call.respondText("OK")
             }
